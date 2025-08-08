@@ -2,7 +2,7 @@ name: alynling-backend
 services:
 - name: geolift-api
   source_dir: /
-  dockerfile_path: Dockerfile.backend
+  dockerfile_path: Dockerfile
   github:
     repo: linglistack/alynling
     branch: main

@@ -1,7 +1,7 @@
-# Dockerfile for GeoLift API deployment on Render
+# Dockerfile for R Backend API deployment on DigitalOcean
 FROM rocker/r-ver:4.3.0
 
-# Install system dependencies for R packages and devtools
+# Install system dependencies for R packages only
 RUN apt-get update && apt-get install -y \
     # Essential build tools
     build-essential \
@@ -41,46 +41,38 @@ RUN apt-get update && apt-get install -y \
     libproj-dev \
     libgeos-dev \
     libudunits2-dev \
-    libnode-dev \
     # System utilities
     wget \
     unzip \
     curl \
     ca-certificates \
-    gnupg \
-    # Node.js (alternative installation)
-    nodejs \
-    npm \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
 
-# Copy package.json first for npm dependencies
-COPY package.json package-lock.json* ./
-RUN npm install
-
-# Copy package installation script and install R packages
+# Copy R package installation script
 COPY install_packages.R .
 
 # Configure R for package installation
 RUN echo 'options(repos = c(CRAN = "https://cloud.r-project.org/"))' >> /usr/local/lib/R/etc/Rprofile.site && \
     echo 'options(Ncpus = parallel::detectCores())' >> /usr/local/lib/R/etc/Rprofile.site
 
-# Install R packages with verbose output
-RUN echo "Starting R package installation..." && \
-    R -e "cat('R version:', R.version.string, '\n')" && \
-    R -e "cat('Available system libraries:\n'); system('pkg-config --list-all | grep -E \"(curl|ssl|xml)\"')" && \
+# Install R packages
+RUN echo "Installing R packages..." && \
     Rscript install_packages.R && \
     echo "R package installation completed"
 
-# Copy the rest of the application
-COPY . .
+# Copy only backend files
+COPY api/ ./api/
+COPY R/ ./R/
+COPY start_digitalocean.R .
+COPY public/us_city_revenue_data*.csv ./public/
 
 # Create marker file to skip package installation on startup
 RUN touch .packages_installed
 
-# Expose port (Render will set PORT env variable)
+# Expose port for DigitalOcean
 EXPOSE 8000
 
 # Set environment variables
@@ -88,5 +80,5 @@ ENV R_LIBS_USER=/usr/local/lib/R/site-library
 ENV HOST=0.0.0.0
 ENV PORT=8000
 
-# Start the application
-CMD ["Rscript", "start_render.R"]
+# Start the R API server
+CMD ["Rscript", "start_digitalocean.R"] 

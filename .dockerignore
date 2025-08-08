@@ -19,7 +19,6 @@ GeoLift指标计算逻辑详解.txt
 
 # Exclude deployment configs for other platforms
 render.yaml
-Dockerfile
 
 # Exclude test files
 test_api.R
