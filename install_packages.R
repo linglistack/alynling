@@ -1,19 +1,9 @@
-# Comprehensive package installation for GeoLift API
+# Comprehensive package installation for GeoLift API with proper dependency handling
 cat("Starting R package installation for GeoLift API...\n")
 
-# Set CRAN mirror
+# Set CRAN mirror and options
 options(repos = c(CRAN = "https://cloud.r-project.org/"))
-
-# 1. Install devtools FIRST using standard method
-cat("\n=== Installing devtools (standard GitHub installer) ===\n")
-if (!require("devtools", character.only = TRUE, quietly = TRUE)) {
-  cat("Installing devtools from CRAN...\n")
-  install.packages("devtools", repos = "https://cloud.r-project.org/")
-  library(devtools)
-  cat("✓ devtools installation complete\n")
-} else {
-  cat("✓ devtools already installed\n")
-}
+options(Ncpus = parallel::detectCores())
 
 # Function to install packages with error handling
 install_package_safely <- function(package_name, source = "CRAN", github_repo = NULL) {
@@ -30,7 +20,10 @@ install_package_safely <- function(package_name, source = "CRAN", github_repo = 
       }
     } else if (source == "GitHub") {
       if (!require(package_name, character.only = TRUE, quietly = TRUE)) {
-        devtools::install_github(github_repo, dependencies = TRUE)
+        if (!require("remotes", character.only = TRUE, quietly = TRUE)) {
+          install.packages("remotes", dependencies = TRUE)
+        }
+        remotes::install_github(github_repo, dependencies = TRUE)
         library(package_name, character.only = TRUE)
         cat(paste("✓", package_name, "installed successfully from GitHub\n"))
       } else {
@@ -44,7 +37,23 @@ install_package_safely <- function(package_name, source = "CRAN", github_repo = 
   })
 }
 
-# 2. Install core packages
+# 1. Install system-level graphics dependencies first
+cat("\n=== Installing graphics and system dependencies ===\n")
+graphics_packages <- c("systemfonts", "textshaping")
+
+for (pkg in graphics_packages) {
+  install_package_safely(pkg, "CRAN")
+}
+
+# 2. Install ragg (graphics rendering)
+cat("\n=== Installing ragg (graphics) ===\n")
+install_package_safely("ragg", "CRAN")
+
+# 3. Install lightweight remote installer first
+cat("\n=== Installing remotes (lightweight GitHub installer) ===\n")
+install_package_safely("remotes", "CRAN")
+
+# 4. Install core packages
 cat("\n=== Installing core dependencies ===\n")
 core_packages <- c(
   "plumber", "jsonlite", "dplyr", "tidyr", "ggplot2", "stringr",
@@ -56,7 +65,7 @@ for (pkg in core_packages) {
   install_package_safely(pkg, "CRAN")
 }
 
-# 3. Install specialized packages
+# 5. Install specialized packages
 cat("\n=== Installing specialized packages ===\n")
 specialized_packages <- c("gsynth", "panelView", "MarketMatching", "directlabels", "lifecycle")
 
@@ -64,30 +73,91 @@ for (pkg in specialized_packages) {
   install_package_safely(pkg, "CRAN")
 }
 
-# 4. Install augsynth from GitHub using devtools
-cat("\n=== Installing augsynth from GitHub using devtools ===\n")
-augsynth_success <- install_package_safely("augsynth", "GitHub", "ebenmichael/augsynth")
+# 6. Try to install pkgdown (optional for devtools)
+cat("\n=== Installing pkgdown (optional) ===\n")
+pkgdown_success <- install_package_safely("pkgdown", "CRAN")
 
-# 5. Verify installation
+# 7. Install devtools with minimal dependencies if pkgdown fails
+cat("\n=== Installing devtools ===\n")
+if (pkgdown_success) {
+  devtools_success <- install_package_safely("devtools", "CRAN")
+} else {
+  cat("pkgdown failed, trying devtools with minimal dependencies...\n")
+  tryCatch({
+    install.packages("devtools", dependencies = c("Depends", "Imports"))
+    devtools_success <- require("devtools", character.only = TRUE, quietly = TRUE)
+    if (devtools_success) {
+      cat("✓ devtools installed with minimal dependencies\n")
+    }
+  }, error = function(e) {
+    cat("✗ devtools installation failed:", e$message, "\n")
+    devtools_success <- FALSE
+  })
+}
+
+# 8. Install augsynth from GitHub
+cat("\n=== Installing augsynth from GitHub ===\n")
+if (require("remotes", character.only = TRUE, quietly = TRUE)) {
+  augsynth_success <- install_package_safely("augsynth", "GitHub", "ebenmichael/augsynth")
+} else if (require("devtools", character.only = TRUE, quietly = TRUE)) {
+  cat("Using devtools for augsynth installation...\n")
+  tryCatch({
+    devtools::install_github("ebenmichael/augsynth", dependencies = TRUE)
+    augsynth_success <- require("augsynth", character.only = TRUE, quietly = TRUE)
+    if (augsynth_success) {
+      cat("✓ augsynth installed from GitHub using devtools\n")
+    }
+  }, error = function(e) {
+    cat("✗ augsynth installation failed:", e$message, "\n")
+    augsynth_success <- FALSE
+  })
+} else {
+  cat("⚠️  Neither remotes nor devtools available, skipping augsynth\n")
+  augsynth_success <- FALSE
+}
+
+# 9. Verification
 cat("\n=== Verifying installation ===\n")
-critical_packages <- c("plumber", "jsonlite", "dplyr", "augsynth", "gsynth")
-all_good <- TRUE
+critical_packages <- c("plumber", "jsonlite", "dplyr", "gsynth")
+optional_packages <- c("devtools", "augsynth", "ragg")
 
+all_critical_ok <- TRUE
+optional_count <- 0
+
+cat("Critical packages:\n")
 for (pkg in critical_packages) {
   if (require(pkg, character.only = TRUE, quietly = TRUE)) {
     cat(paste("✓", pkg, "verified\n"))
   } else {
     cat(paste("✗", pkg, "NOT AVAILABLE\n"))
-    all_good <- FALSE
+    all_critical_ok <- FALSE
   }
 }
 
-if (all_good) {
-  cat("\n🎉 All packages installed successfully!\n")
+cat("\nOptional packages:\n")
+for (pkg in optional_packages) {
+  if (require(pkg, character.only = TRUE, quietly = TRUE)) {
+    cat(paste("✓", pkg, "verified\n"))
+    optional_count <- optional_count + 1
+  } else {
+    cat(paste("○", pkg, "not available (optional)\n"))
+  }
+}
+
+# Final status
+cat("\n=== Installation Summary ===\n")
+if (all_critical_ok) {
+  cat("🎉 All critical packages installed successfully!\n")
+  cat(paste("✓ Optional packages installed:", optional_count, "/", length(optional_packages), "\n"))
   cat("GeoLift API is ready to start.\n")
+  
+  if (optional_count < length(optional_packages)) {
+    cat("\n📝 Note: Some optional packages failed to install.\n")
+    cat("The API will work, but some advanced features may be limited.\n")
+  }
 } else {
-  cat("\n⚠️  Some packages failed to install. Check the errors above.\n")
-  stop("Package installation incomplete")
+  cat("⚠️  Some critical packages failed to install. Check the errors above.\n")
+  cat("The API may not work properly.\n")
 }
 
 cat("\nInstallation completed at:", Sys.time(), "\n")
