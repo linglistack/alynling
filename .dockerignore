@@ -1,0 +1,30 @@
+# Exclude frontend files for backend-only deployment
+src/
+node_modules/
+package.json
+package-lock.json
+
+# Exclude development files
+.git/
+.gitignore
+*.log
+frontend.log
+r_server.log
+
+# Exclude documentation
+README.md
+API_README.md
+MAJOR_PLATFORMS_ICONS.md
+GeoLift指标计算逻辑详解.txt
+
+# Exclude deployment configs for other platforms
+render.yaml
+Dockerfile
+
+# Exclude test files
+test_api.R
+
+# Exclude system files
+.DS_Store
+*.tmp
+*.swp 

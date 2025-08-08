@@ -1,0 +1,23 @@
+name: alynling-backend
+services:
+- name: geolift-api
+  source_dir: /
+  dockerfile_path: Dockerfile.backend
+  github:
+    repo: linglistack/alynling
+    branch: main
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  http_port: 8000
+  environment_slug: node-js
+  health_check:
+    http_path: /health
+  envs:
+  - key: HOST
+    value: "0.0.0.0"
+  - key: PORT
+    value: "8000"
+  - key: R_LIBS_USER
+    value: "/usr/local/lib/R/site-library"
+  - key: NODE_ENV
+    value: "production" 
