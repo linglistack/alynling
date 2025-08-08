@@ -1,0 +1,253 @@
+.causal-inference-page {
+    background-color: #f8fafc;
+    display: flex;
+    flex-direction: column;
+    animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.causal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 32px;
+    background: white;
+    border-bottom: 1px solid #e5e7eb;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.page-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin: 0;
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.workspace-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.workspace-selector label {
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.workspace-selector select {
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: white;
+    font-size: 14px;
+    color: #374151;
+    min-width: 160px;
+}
+
+.causal-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.causal-tabs {
+    display: flex;
+    background: white;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 0 32px;
+}
+
+.tab-button {
+    padding: 16px 24px;
+    background: none;
+    border: none;
+    color: #6b7280;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+    color: #374151;
+}
+
+.tab-button.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+}
+
+.graph-container {
+    flex: 1;
+    padding: 32px;
+    background: white;
+    margin: 20px 32px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.graph-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.graph-header h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin: 0;
+}
+
+.settings-button {
+    background: none;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 8px;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.settings-button:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
+}
+
+.dag-visualization {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fafbfc;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    overflow: auto;
+    min-height: 400px;
+}
+
+.dag-visualization svg {
+    max-width: 100%;
+    height: auto;
+}
+
+.legend {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    padding: 16px;
+    background: #f9fafb;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #374151;
+}
+
+.legend-line {
+    width: 20px;
+    height: 2px;
+    border-radius: 1px;
+}
+
+.legend-line.direct {
+    background: #3b82f6;
+    background-image: repeating-linear-gradient(to right,
+            #3b82f6,
+            #3b82f6 5px,
+            transparent 5px,
+            transparent 10px);
+}
+
+.legend-line.indirect {
+    background: #10b981;
+    background-image: repeating-linear-gradient(to right,
+            #10b981,
+            #10b981 5px,
+            transparent 5px,
+            transparent 10px);
+}
+
+.legend-line.other {
+    background: #6b7280;
+    background-image: repeating-linear-gradient(to right,
+            #6b7280,
+            #6b7280 3px,
+            transparent 3px,
+            transparent 6px);
+}
+
+/* Node hover effects */
+.dag-visualization rect {
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.dag-visualization rect:hover {
+    opacity: 1;
+    stroke-width: 2;
+    filter: brightness(1.1);
+}
+
+/* Connection hover effects */
+.dag-visualization path {
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.dag-visualization path:hover {
+    stroke-width: 3;
+    filter: brightness(1.2);
+}
+
+/* Responsive design */
+@media (max-width: 1200px) {
+    .dag-visualization svg {
+        width: 100%;
+        height: auto;
+    }
+
+    .legend {
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .graph-container {
+        margin: 20px 16px;
+        padding: 20px;
+    }
+}

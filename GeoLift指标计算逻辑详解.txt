@@ -1,0 +1,325 @@
+GeoLift分析方法和指标计算逻辑详解
+=====================================
+
+基于对GeoLift项目的深入分析，本文档详细介绍了GeoLift分析的方法和指标。
+
+## GeoLift分析概述
+
+GeoLift是一个基于合成控制方法(Synthetic Control Methods, SCMs)的地理层级增量测量解决方案。它通过创建人工控制单元来测量营销活动的真实效果。
+
+## 核心分析方法
+
+### 1. 合成控制方法(SCM)
+- **原理**：创建一个与测试单元尽可能相似的人工单元
+- **过程**：使用处理前的历史信息，找到最能复制被处理单元的未处理单元组合
+- **优势**：组合多个单元通常比单个单元提供更好的比较基准
+
+### 2. 增强合成控制方法(ASCM)
+- 结合了合成控制估计的稳定性
+- 通过预后函数进行增强，改善拟合度并减少L2不平衡指标
+
+### 3. 广义合成控制方法(GSC)
+- 提供强大的推断能力
+- 在小样本和异质效应方面具有鲁棒性
+
+## 主要指标及其计算方法
+
+### 1. **ATT (Average Treatment Effect) - 平均处理效应**
+```
+ATT = 观察值 - 合成控制预测值
+```
+- **含义**：测试期间每天的平均增量效应
+- **计算**：处理期间观察值与合成控制预测值之间的差异
+
+### 2. **Percent Lift - 百分比提升**
+```
+Percent Lift = (观察值总和 - 合成控制预测值总和) / |合成控制预测值总和| × 100%
+```
+- **含义**：整个测试期间的相对提升百分比
+- **计算**：增量效应相对于反事实基线的百分比
+
+### 3. **Incremental Y - 增量Y值**
+```
+Incremental Y = 观察值总和 - (合成控制预测值总和 × 测试位置数量)
+```
+- **含义**：整个测试期间的总增量单位数
+- **计算**：实际观察值与反事实预测值之间的绝对差异
+
+### 4. **L2 Imbalance - L2不平衡**
+```
+L2 Imbalance = √(Σ(观察值 - 合成控制预测值)²)
+```
+- **含义**：模型拟合质量的度量
+- **解释**：值越小表示拟合越好
+
+### 5. **Scaled L2 Imbalance - 缩放L2不平衡**
+```
+Scaled L2 Imbalance = L2 Imbalance / 朴素模型L2 Imbalance
+```
+- **含义**：标准化后的拟合质量指标
+- **范围**：0-1之间，0表示完美拟合，1表示与朴素模型相同
+
+### 6. **Power - 统计功效**
+- **含义**：检测到真实效应的概率
+- **计算**：通过多次模拟计算得出
+- **目标**：通常希望达到80%以上
+
+### 7. **P-value - 显著性水平**
+- **含义**：观察到的效应是偶然产生的概率
+- **阈值**：通常使用0.05或0.1作为显著性水平
+
+### 8. **MDE (Minimum Detectable Effect) - 最小可检测效应**
+- **含义**：在给定功效水平下能够检测到的最小效应大小
+- **计算**：通过功效分析得出
+
+### 9. **Confidence Intervals - 置信区间**
+- **含义**：效应估计的不确定性范围
+- **方法**：使用conformal或jackknife+方法计算
+
+### 10. **Model Weights - 模型权重**
+- **含义**：各个控制位置在合成控制中的贡献权重
+- **计算**：通过优化算法得出，使合成控制最接近测试单元
+
+## 核心指标详细计算逻辑
+
+### 1. **Estimated ROI (估计的投资回报率)**
+
+GeoLift中ROI的计算基于增量效应和投资成本：
+
+```r
+# 在R/pre_test_power.R中的计算逻辑
+investment <- cpic * sum(data_aux$Y[data_aux$D == 1]) * (es)
+```
+
+**计算逻辑**：
+- **ROI = 增量价值 / 投资成本**
+- **增量价值** = 观察值总和 - 合成控制预测值总和
+- **投资成本** = CPIC (每次增量转化的成本) × 预期增量转化数 × 效应大小
+
+### 2. **ROI Confidence Interval (投资回报率置信区间)**
+
+置信区间通过conformal inference方法计算：
+
+```r
+# 在R/post_test_analysis.R中
+ci <- ConfIntervals(
+  augsynth = augsyn,
+  treatment_start_time = treatment_start_time,
+  treatment_end_time = treatment_end_time,
+  alpha = alpha,
+  stat_func = stat_func,
+  method = tolower(method),
+  grid_size = grid_size,
+  conformal_type = conformal_type,
+  ns = ns
+)
+```
+
+**计算逻辑**：
+- 使用conformal inference或jackknife+方法
+- 基于ATT的置信区间计算ROI的置信区间
+- 考虑统计不确定性和模型拟合误差
+
+### 3. **Standard Error (标准误差)**
+
+标准误差来自augsynth模型的输出：
+
+```r
+# 在R/post_test_analysis.R中
+se <- sum_augsyn[["average_att"]][["Std.Error"]]
+ATT_se <- sum_augsyn$att$Std.Error
+```
+
+**计算逻辑**：
+- 基于合成控制方法的估计方差
+- 考虑控制单元的权重和残差
+- 反映ATT估计的精确度
+
+### 4. **Statistical Significance (统计显著性)**
+
+通过p值判断统计显著性：
+
+```r
+# 在R/post_test_analysis.R中
+if (x$inference$pvalue < 0.05) {
+  is_significant <- "The results are significant at a 95% level."
+} else if (x$inference$pvalue < 0.10) {
+  is_significant <- "The results are significant at a 90% level."
+}
+```
+
+**计算逻辑**：
+- 使用conformal inference计算p值
+- 基于置换检验(permutation test)
+- 零假设：处理效应为0
+
+### 5. **T-statistic (T统计量)**
+
+T统计量基于ATT估计和标准误差：
+
+```r
+# 隐含的计算逻辑
+t_statistic <- ATT_estimate / ATT_standard_error
+```
+
+**计算逻辑**：
+- **T统计量 = ATT估计值 / ATT标准误差**
+- 用于评估ATT是否显著不为0
+- 基于正态分布假设进行推断
+
+### 6. **Total Incremental Value (总增量价值)**
+
+总增量价值的计算：
+
+```r
+# 在R/post_test_analysis.R中
+incremental <- sum(augsyn$data$y[loc_id, ]) - (sum(pred_conversions) * length(loc_id))
+```
+
+**计算逻辑**：
+- **总增量价值 = 观察值总和 - (合成控制预测值总和 × 测试位置数量)**
+- 考虑所有测试位置和测试期间
+- 反映营销活动的绝对增量效果
+
+## 核心计算流程
+
+### 1. **合成控制构建**
+```r
+# 使用augsynth包构建合成控制
+augsynth_model <- augsynth::augsynth(
+  form = formula,
+  unit = location,
+  time = time,
+  data = geo_data,
+  t_int = treatment_start_time,
+  progfunc = model,
+  scm = TRUE,
+  fixedeff = fixed_effects
+)
+```
+
+### 2. **ATT计算**
+```r
+# 计算平均处理效应
+ATT <- predict(augsyn, att = TRUE)
+mean <- sum_augsyn[["average_att"]][["Estimate"]]
+```
+
+### 3. **Lift计算**
+```r
+# 计算百分比提升
+lift <- (sum(augsyn$data$y[loc_id, ]) - sum(pred_conversions)) / abs(sum(pred_conversions))
+```
+
+### 4. **置信区间计算**
+```r
+# 使用conformal inference
+ci <- ConfIntervals(
+  augsynth = augsyn,
+  alpha = alpha,
+  method = method,
+  stat_func = stat_func
+)
+```
+
+### 5. **统计检验**
+```r
+# 基于置换检验的p值计算
+pVal <- augsynth:::compute_permute_pval(
+  wide_data = new_wide_data,
+  ascm = ascm_obj,
+  h0 = 0,
+  post_length = ncol(wide_data$y),
+  type = conformal_type,
+  ns = ns,
+  stat_func = stat_func
+)
+```
+
+## 分析流程
+
+1. **数据预处理**：使用`GeoDataRead()`函数格式化数据
+2. **市场选择**：使用`GeoLiftMarketSelection()`选择最佳测试市场
+3. **功效分析**：使用`GeoLiftPower()`计算统计功效
+4. **执行测试**：使用`GeoLift()`进行主要分析
+5. **结果可视化**：使用`plot()`函数查看结果
+
+## 模型选择策略
+
+GeoLift提供三种模型选项：
+- **None**：不增强ASCM
+- **Ridge**：使用岭回归增强（推荐用于小面板）
+- **GSYN**：使用广义合成控制方法（推荐用于大面板）
+- **best**：自动选择最低缩放L2不平衡的模型
+
+## 统计函数类型
+
+GeoLift支持不同的统计检验函数：
+
+```r
+# 在R/pre_test_power.R中
+type_of_test <- function(side_of_test = "two_sided", alternative_hypothesis = NULL) {
+  if (side_of_test == "two_sided") {
+    stat_func <- function(x) sum(abs(x))
+  } else if (side_of_test == "one_sided") {
+    if (is.null(alternative_hypothesis)) {
+      stop("If running a one sided test, please define alternative_hypotehsis parameter.
+  Either 'positive' or 'negative'")
+    }
+    if (tolower(alternative_hypothesis) == "negative") {
+      stat_func <- function(x) -sum(x)
+    } else if (tolower(alternative_hypothesis) == "positive") {
+      stat_func <- function(x) sum(x)
+    } else {
+      stop("Please define a valid alternative_hypothesis. Can be either {'Negative', 'Positive'}.")
+    }
+  } else {
+    stop("Please define a valid side_of_test. Can be either {'one_sided', 'two_sided'}.")
+  }
+
+  return(stat_func)
+}
+```
+
+## 多单元测试中的ROI分析
+
+在多单元测试中，GeoLift还支持ROAS (Return on Ad Spend) 分析：
+
+```r
+# 在R/MultiCell.R中
+MultiCellWinner <- function(multicell_power_obj,
+                            effect_size = NULL,
+                            geolift_type = "standard",
+                            ROAS = seq(0, 5, 0.05),
+                            alpha = 0.1,
+                            method = "conformal",
+                            stat_test = "Total") {
+  # 检查ROAS参数
+  if (min(ROAS) < 0) {
+    stop("\nMake sure all ROAS values are positive.")
+  } else if (min(ROAS == 0)) {
+    ROAS <- c(0, ROAS)
+  }
+  
+  # 计算不同ROAS水平下的增量效应
+  for (roas in ROAS) {
+    # 应用ROAS效应到测试数据
+    data_aux$Y[data_aux$time >= (max(data_aux$time) - duration + 1) & 
+               data_aux$location %in% test_locs[[combinations[, combo][1]]]] <- 
+      data_aux$Y[data_aux$time >= (max(data_aux$time) - duration + 1) & 
+                 data_aux$location %in% test_locs[[combinations[, combo][1]]]] * (1 + effect_size * roas)
+  }
+}
+```
+
+## 总结
+
+这些指标的计算都基于合成控制方法的核心原理：通过构建一个与测试单元最相似的合成控制单元，来估计在没有处理的情况下会发生什么，从而计算真实的增量效应。
+
+GeoLift通过以下方式确保结果的可靠性：
+1. **科学的方法论**：基于最新的合成控制方法研究
+2. **严格的统计推断**：使用conformal inference进行置信区间计算
+3. **全面的功效分析**：在测试前评估检测能力
+4. **透明的计算过程**：所有计算逻辑都是开源的
+
+这种方法使GeoLift能够提供科学、可靠的增量测量，帮助营销人员准确评估广告活动的真实价值。 

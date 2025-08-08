@@ -1,0 +1,287 @@
+.integration-detail-page {
+    padding: 32px 40px;
+    background-color: #f8fafc;
+    animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.integration-detail-header {
+    margin-bottom: 24px;
+}
+
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    font-size: 16px;
+    color: #6b7280;
+}
+
+.breadcrumb-item {
+    color: #6b7280;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.breadcrumb-item:hover {
+    color: #374151;
+}
+
+.breadcrumb-separator {
+    margin: 0 12px;
+    color: #9ca3af;
+}
+
+.breadcrumb-current {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #1f2937;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.integration-tabs {
+    display: flex;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 24px;
+}
+
+.tab-button {
+    padding: 12px 0;
+    margin-right: 32px;
+    background: none;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    color: #6b7280;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+    color: #374151;
+}
+
+.tab-button.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+}
+
+.date-range-section {
+    margin-bottom: 32px;
+}
+
+.date-range {
+    font-size: 14px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.overview-content {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+
+.overview-metrics-section h3,
+.source-sync-section h3,
+.source-data-section h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 20px;
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+}
+
+.metric-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 20px;
+    transition: all 0.2s ease;
+}
+
+.metric-card:hover {
+    border-color: #d1d5db;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.metric-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.metric-label {
+    font-size: 14px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.metric-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.mini-chart {
+    flex-shrink: 0;
+}
+
+.source-sync-section {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 24px;
+}
+
+.sync-monitor-chart {
+    background: #fafbfc;
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid #f0f0f0;
+}
+
+.source-data-section {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 24px;
+}
+
+.source-data-table {
+    overflow-x: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+}
+
+.source-data-table table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 1000px;
+}
+
+.source-data-table th {
+    background: #f8fafc;
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: #4a5568;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.source-data-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #2d3748;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.source-data-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.source-data-table tbody tr:nth-child(even) {
+    background: #fafbfc;
+}
+
+.source-data-table tbody tr:nth-child(even):hover {
+    background: #f1f5f9;
+}
+
+/* Responsive design */
+@media (max-width: 1200px) {
+    .integration-detail-page {
+        padding: 24px 20px;
+    }
+
+    .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+}
+
+@media (max-width: 768px) {
+    .integration-detail-page {
+        padding: 16px;
+    }
+
+    .breadcrumb {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .breadcrumb-separator {
+        display: none;
+    }
+
+    .metrics-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .integration-tabs {
+        overflow-x: auto;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .integration-tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .tab-button {
+        margin-right: 24px;
+        white-space: nowrap;
+    }
+
+    .source-sync-section,
+    .source-data-section {
+        padding: 16px;
+    }
+
+    .overview-content {
+        gap: 24px;
+    }
+}
+
+@media (max-width: 480px) {
+    .metric-card {
+        padding: 16px;
+    }
+
+    .metric-value {
+        font-size: 20px;
+    }
+
+    .source-data-table {
+        font-size: 12px;
+    }
+
+    .source-data-table th,
+    .source-data-table td {
+        padding: 8px 12px;
+    }
+}

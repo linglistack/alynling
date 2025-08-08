@@ -1,0 +1,40 @@
+.app {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f5f5f5;
+  position: relative;
+}
+
+.app.full-width {
+  display: block;
+}
+
+.main-container {
+  flex: 1;
+  background-color: white;
+  margin: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  overflow-y: auto;
+  max-height: calc(100vh - 40px);
+  transition: all 0.5s ease;
+}
+
+.sidebar-container {
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  z-index: 10;
+}
+
+.sidebar-container.slide-out {
+  transform: translateX(-100%);
+  pointer-events: none;
+}
+
+.main-container.expand {
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background-color: transparent;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}

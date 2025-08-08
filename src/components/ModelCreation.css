@@ -1,0 +1,605 @@
+.model-creation-page {
+    width: 100vw;
+    height: 100vh;
+    background-color: #f8fafc;
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    animation: slideIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.model-creation-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 40px;
+    background: white;
+    border-bottom: 1px solid #e5e7eb;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.back-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: none;
+    font-size: 16px;
+    font-weight: 500;
+    color: #6b7280;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.back-button:hover {
+    color: #374151;
+}
+
+.progress-steps {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.step-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+}
+
+.step-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #e5e7eb;
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.step-circle.active {
+    background: #667eea;
+    color: white;
+}
+
+.step-circle.completed {
+    background: #10b981;
+    color: white;
+}
+
+.step-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #6b7280;
+    margin-right: 16px;
+}
+
+.step-label.active {
+    color: #667eea;
+}
+
+.step-connector {
+    position: absolute;
+    right: -32px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 2px;
+    background: #e5e7eb;
+    transition: background 0.3s ease;
+}
+
+.step-connector.completed {
+    background: #10b981;
+}
+
+.next-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.next-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.model-creation-content {
+    flex: 1;
+    padding: 40px;
+    overflow-y: auto;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.step-content {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.step-header {
+    text-align: center;
+    margin-bottom: 48px;
+}
+
+.step-header h2 {
+    font-size: 32px;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin: 0 0 8px 0;
+}
+
+.step-header p {
+    font-size: 16px;
+    color: #6b7280;
+    margin: 0;
+}
+
+/* Step 1: Data */
+.input-method {
+    margin-bottom: 40px;
+}
+
+.input-method h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 20px;
+}
+
+.method-options {
+    display: flex;
+    gap: 20px;
+}
+
+.method-option {
+    flex: 1;
+    padding: 24px;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+    font-weight: 500;
+}
+
+.method-option:hover {
+    border-color: #d1d5db;
+}
+
+.method-option.selected {
+    border-color: #667eea;
+    background: #f0f4ff;
+}
+
+.selected-indicator {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 20px;
+    height: 20px;
+    background: #667eea;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.integration-icon {
+    width: 20px;
+    height: 20px;
+    background: #e5e7eb;
+    border-radius: 4px;
+}
+
+.upload-section h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 20px;
+}
+
+.upload-area {
+    border: 2px dashed #d1d5db;
+    border-radius: 12px;
+    padding: 48px;
+    text-align: center;
+    background: white;
+    margin-bottom: 24px;
+}
+
+.upload-label {
+    cursor: pointer;
+    display: block;
+}
+
+.upload-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.upload-link {
+    color: #667eea;
+    text-decoration: underline;
+    font-weight: 500;
+}
+
+.upload-info {
+    color: #6b7280;
+    font-size: 14px;
+    margin-top: 8px;
+}
+
+.file-selected {
+    color: #10b981;
+    font-weight: 500;
+    margin-top: 12px;
+}
+
+.upload-guidelines {
+    color: #6b7280;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.upload-guidelines p {
+    margin: 8px 0;
+}
+
+/* Step 2: Features */
+.feature-section {
+    margin-bottom: 40px;
+}
+
+.feature-section h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 20px;
+}
+
+.feature-row {
+    display: flex;
+    gap: 20px;
+    align-items: end;
+    margin-bottom: 16px;
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+
+.feature-input {
+    flex: 1;
+    position: relative;
+}
+
+.feature-input label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 8px;
+}
+
+.feature-input select,
+.feature-input input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+}
+
+.data-source {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+    color: #667eea;
+    background: #f0f4ff;
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+
+.remove-feature {
+    background: #fee2e2;
+    color: #dc2626;
+    border: none;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.add-feature {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: none;
+    color: #667eea;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 8px;
+}
+
+/* Step 3: Configuration */
+.advanced-settings h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 24px;
+}
+
+.adstock-section h4 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 20px;
+}
+
+.adstock-controls {
+    display: flex;
+    gap: 40px;
+    margin-bottom: 32px;
+    padding: 24px;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+
+.control-group label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 12px;
+}
+
+.radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.radio-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #374151;
+    cursor: pointer;
+}
+
+.radio-option input[type="radio"] {
+    margin: 0;
+}
+
+.adstock-charts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    margin-top: 24px;
+}
+
+.adstock-chart {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+
+.adstock-chart h4 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.chart-container {
+    margin-bottom: 24px;
+    background: #fafbfc;
+    border-radius: 6px;
+    padding: 16px;
+    border: 1px solid #f0f0f0;
+}
+
+.chart-parameters {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.parameter-section h5 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 12px;
+    border-bottom: 1px dotted #d1d5db;
+    padding-bottom: 4px;
+}
+
+.parameter-row {
+    display: flex;
+    gap: 16px;
+}
+
+.parameter-input {
+    flex: 1;
+}
+
+.parameter-input label {
+    display: block;
+    font-size: 12px;
+    color: #6b7280;
+    margin-bottom: 4px;
+}
+
+.parameter-input input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+/* Step 4: Calibration */
+.calibration-section h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 20px;
+}
+
+.calibration-table {
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+    margin-bottom: 32px;
+}
+
+.calibration-table table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.calibration-table th {
+    background: #f9fafb;
+    padding: 16px;
+    text-align: left;
+    font-weight: 600;
+    color: #374151;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 14px;
+}
+
+.calibration-table td {
+    padding: 16px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.calibration-table select,
+.calibration-table input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.remove-row {
+    background: #fee2e2;
+    color: #dc2626;
+    border: none;
+    padding: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.add-calibration {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: none;
+    color: #667eea;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 16px;
+}
+
+.training-size-section h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 20px;
+}
+
+.training-size-inputs {
+    display: flex;
+    gap: 20px;
+    max-width: 400px;
+}
+
+.size-input {
+    flex: 1;
+}
+
+.size-input label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 8px;
+}
+
+.size-input input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .model-creation-content {
+        padding: 20px;
+    }
+
+    .method-options {
+        flex-direction: column;
+    }
+
+    .adstock-charts {
+        grid-template-columns: 1fr;
+    }
+
+    .adstock-controls {
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .feature-row {
+        flex-direction: column;
+        gap: 16px;
+    }
+}

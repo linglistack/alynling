@@ -1,0 +1,29 @@
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+Starting GeoLift API server on http://localhost:8000
+API endpoints available:
+  GET  /health                    - Health check
+  POST /api/data/upload           - Upload and process CSV data
+  POST /api/market-selection      - Market selection analysis
+  POST /api/power-analysis        - Power analysis
+  POST /api/geolift               - Run GeoLift analysis
+
+API is ready to receive requests from frontend...
+Running plumber API at http://0.0.0.0:8000
+Running swagger Docs at http://127.0.0.1:8000/__docs__/
+Calculating which the best treatment groups are.
+Caution: Small pre-treatment period!.
+                   
+It's recommended to have at least 4x pre-treatment periods for each treatment period.
+
+
+Deterministic setup with 1 locations in treatment.
