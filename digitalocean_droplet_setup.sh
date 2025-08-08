@@ -46,9 +46,44 @@ cd /home/ubuntu
 git clone https://github.com/linglistack/AlynLing.git
 cd AlynLing
 
-# Install R packages
-echo "📦 Installing R packages..."
-sudo Rscript install_packages.R
+# Install R packages (excluding devtools and augsynth for now)
+echo "📦 Installing R packages (excluding devtools and augsynth)..."
+sudo Rscript -e "
+options(repos = c(CRAN = 'https://cloud.r-project.org/'))
+options(Ncpus = parallel::detectCores())
+
+# Core packages needed for the API
+core_packages <- c(
+  'plumber', 'jsonlite', 'dplyr', 'tidyr', 'ggplot2', 'stringr',
+  'progress', 'foreach', 'doParallel', 'scales', 'gridExtra', 
+  'knitr', 'tibble', 'rlang'
+)
+
+# Specialized packages
+specialized_packages <- c('gsynth', 'panelView', 'MarketMatching', 'directlabels', 'lifecycle')
+
+cat('Installing core packages...\n')
+for (pkg in core_packages) {
+  if (!require(pkg, character.only = TRUE, quietly = TRUE)) {
+    install.packages(pkg, dependencies = TRUE)
+    cat(paste('✓', pkg, 'installed\n'))
+  } else {
+    cat(paste('✓', pkg, 'already installed\n'))
+  }
+}
+
+cat('Installing specialized packages...\n')
+for (pkg in specialized_packages) {
+  if (!require(pkg, character.only = TRUE, quietly = TRUE)) {
+    install.packages(pkg, dependencies = TRUE)
+    cat(paste('✓', pkg, 'installed\n'))
+  } else {
+    cat(paste('✓', pkg, 'already installed\n'))
+  }
+}
+
+cat('Basic R package installation completed!\n')
+"
 
 # Create systemd service for R API
 echo "⚙️ Creating systemd service..."
