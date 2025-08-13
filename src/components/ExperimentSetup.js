@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import IngestDataStep from './IngestDataStep';
 import ConfigureExperiment from './ConfigureExperiment';
+import AnalyzeExperiment from './AnalyzeExperiment';
 import { geoliftAPI } from '../utils/geoliftAPI';
 import './ExperimentSetup.css';
 
@@ -25,6 +26,7 @@ const ExperimentSetup = ({ onBack }) => {
   const [processedData, setProcessedData] = useState(null);
   const [uploadError, setUploadError] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [configSummary, setConfigSummary] = useState(null);
 
   const canProceed = !!fileData && !isUploading;
 
@@ -152,13 +154,11 @@ const ExperimentSetup = ({ onBack }) => {
         )}
 
         {currentStep === 2 && (
-          <ConfigureExperiment processedData={processedData} onProceed={() => setCurrentStep(3)} />
+          <ConfigureExperiment processedData={processedData} onProceed={(payload) => { setConfigSummary(payload); setCurrentStep(3); }} />
         )}
 
         {currentStep === 3 && (
-          <div className="configure-step">
-            <div className="configure-header">Step 3: Analyze</div>
-          </div>
+          <AnalyzeExperiment processedData={processedData} config={configSummary} />
         )}
       </div>
     </div>

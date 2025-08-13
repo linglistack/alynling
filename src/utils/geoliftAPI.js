@@ -154,7 +154,31 @@ export const geoliftAPI = {
         confidence_intervals: confidenceIntervals
       })
     });
-  }
+  },
+
+  async edaPlots(data, options = {}) {
+    const {
+      treatmentPeriods = 14,
+      effectSize = [0, 0.05, 0.1, 0.15, 0.2, 0.25],
+      lookbackWindow = 1,
+      cpic = 1,
+      alpha = 0.1,
+      marketRank = 1,
+    } = options;
+
+    return apiRequest('/api/eda/plots', {
+      method: 'POST',
+      body: JSON.stringify({
+        data,
+        treatment_periods: treatmentPeriods,
+        effect_size: effectSize,
+        lookback_window: lookbackWindow,
+        cpic,
+        alpha,
+        market_rank: marketRank
+      })
+    });
+  },
 };
 
 /**

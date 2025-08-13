@@ -146,33 +146,76 @@ function(req, res) {
   tryCatch({
     body <- jsonlite::fromJSON(req$postBody)
     data <- body$data
-    treatment_periods <- ifelse(is.null(body$treatment_periods), 14, body$treatment_periods)
-    effect_size <- ifelse(is.null(body$effect_size), c(0, 0.05, 0.1, 0.15, 0.2, 0.25), body$effect_size)
-    lookback_window <- ifelse(is.null(body$lookback_window), 1, body$lookback_window)
-    cpic <- ifelse(is.null(body$cpic), 1, body$cpic)
-    alpha <- ifelse(is.null(body$alpha), 0.1, body$alpha)
-    
+
+    # Defaults aligned with R example snippet
+    treatment_periods <- if (is.null(body$treatment_periods)) c(13) else body$treatment_periods
+    effect_size <- if (is.null(body$effect_size)) seq(0, 0.3, 0.05) else body$effect_size
+    lookback_window <- if (is.null(body$lookback_window)) 1 else body$lookback_window
+    cpic <- if (is.null(body$cpic)) 1 else body$cpic
+    alpha <- if (is.null(body$alpha)) 0.05 else body$alpha
+
+    N <- if (is.null(body$N)) c(2,3,4,5) else body$N
+    include_markets <- if (is.null(body$include_markets)) c() else as.character(body$include_markets)
+    exclude_markets <- if (is.null(body$exclude_markets)) c() else as.character(body$exclude_markets)
+    holdout <- if (is.null(body$holdout)) c(0.5, 1) else body$holdout
+    budget <- if (is.null(body$budget)) 100000 else body$budget
+    side_of_test <- if (is.null(body$side_of_test)) "two_sided" else body$side_of_test
+    fixed_effects <- if (is.null(body$fixed_effects)) TRUE else as.logical(body$fixed_effects)
+    Correlations <- if (is.null(body$Correlations)) TRUE else as.logical(body$Correlations)
+    Y_id <- if (is.null(body$Y_id)) "Y" else body$Y_id
+    location_id <- if (is.null(body$location_id)) "location" else body$location_id
+    time_id <- if (is.null(body$time_id)) "time" else body$time_id
+
     if (is.null(data)) {
       res$status <- 400
       return(list(error = "Data is required"))
     }
-    
+
     data <- as.data.frame(data)
-    
-    # Ensure foreach backend available if GeoLift uses it
-if (!is.null(getOption('mc.cores')) && getOption('mc.cores') > 1) {
-  doParallel::registerDoParallel(parallel::detectCores())
-}
-market_selection <- GeoLiftMarketSelection(
+
+    # Sanitize include/exclude markets to match available locations (lowercase)
+    if (!(location_id %in% names(data))) {
+      res$status <- 400
+      return(list(error = paste("location_id column not found:", location_id)))
+    }
+    available_locs <- unique(tolower(as.character(data[[location_id]])))
+    include_markets <- tolower(include_markets)
+    exclude_markets <- tolower(exclude_markets)
+    include_markets <- include_markets[include_markets %in% available_locs]
+    exclude_markets <- exclude_markets[exclude_markets %in% available_locs]
+
+    # Cap N to half of markets after exclusion per helper's intent
+    max_n <- max(1, floor(length(available_locs) / 2))
+    N <- N[N <= max_n]
+    if (length(N) == 0) N <- max(2, min(5, max_n))
+
+    # Ensure foreach backend registered if used
+    if (!is.null(getOption('mc.cores')) && getOption('mc.cores') > 1) {
+      doParallel::registerDoParallel(parallel::detectCores())
+    }
+
+    market_selection <- GeoLiftMarketSelection(
       data = data,
       treatment_periods = treatment_periods,
+      N = N,
+      Y_id = Y_id,
+      location_id = location_id,
+      time_id = time_id,
       effect_size = effect_size,
       lookback_window = lookback_window,
+      include_markets = include_markets,
+      exclude_markets = exclude_markets,
+      holdout = holdout,
       cpic = cpic,
+      budget = budget,
       alpha = alpha,
-      parallel = FALSE
+      side_of_test = side_of_test,
+      fixed_effects = fixed_effects,
+      Correlations = Correlations,
+      parallel = FALSE,
+      print = FALSE
     )
-    
+
     list(
       success = TRUE,
       market_selection = market_selection$BestMarkets,
@@ -365,5 +408,172 @@ function(req, res) {
   }, error = function(e) {
     res$status <- 500
     list(error = paste("GeoLift analysis failed:", e$message))
+  })
+}
+
+#* EDA plots data: observations by group and power curve
+#* @post /api/eda/plots
+function(req, res) {
+  tryCatch({
+    body <- jsonlite::fromJSON(req$postBody)
+    data <- body$data
+    treatment_periods <- if (is.null(body$treatment_periods)) 14 else as.integer(body$treatment_periods)
+    effect_size <- if (is.null(body$effect_size)) c(0, 0.05, 0.1, 0.15, 0.2, 0.25) else body$effect_size
+    lookback_window <- if (is.null(body$lookback_window)) 1 else as.integer(body$lookback_window)
+    cpic <- if (is.null(body$cpic)) 1 else as.numeric(body$cpic)
+    alpha <- if (is.null(body$alpha)) 0.1 else as.numeric(body$alpha)
+    market_rank <- if (is.null(body$market_rank)) 1 else as.integer(body$market_rank)
+
+    if (is.null(data)) {
+      res$status <- 400
+      return(list(error = "Data is required"))
+    }
+
+    df <- as.data.frame(data)
+    req_cols <- c("location", "Y")
+    if (!all(req_cols %in% names(df))) {
+      res$status <- 400
+      return(list(error = paste("Required columns missing:", paste(setdiff(req_cols, names(df)), collapse = ", "))))
+    }
+
+    if (!"date" %in% names(df)) {
+      res$status <- 400
+      return(list(error = "date column is required in processed data"))
+    }
+    df$date <- as.Date(df$date)
+    if (!"time" %in% names(df)) {
+      df$time <- as.numeric(df$date - min(df$date, na.rm = TRUE)) + 1
+    }
+
+    ms <- GeoLiftMarketSelection(
+      data = df,
+      treatment_periods = c(treatment_periods),
+      N = c(2,3,4,5),
+      Y_id = "Y",
+      location_id = "location",
+      time_id = "time",
+      effect_size = effect_size,
+      lookback_window = lookback_window,
+      cpic = cpic,
+      alpha = alpha,
+      fixed_effects = TRUE,
+      Correlations = TRUE,
+      parallel = FALSE,
+      print = FALSE
+    )
+
+    best <- ms$BestMarkets
+
+    # Robustly detect the locations column
+    chosen_locs <- NULL
+    loc_col <- NULL
+
+    # 1) Prefer known names (case-insensitive)
+    known_names <- c("Locs","locations","Locations","locs","Markets","markets","test_locations","TestLocations","test_markets")
+    found <- intersect(known_names, names(best))
+    if (length(found) > 0) loc_col <- found[[1]]
+
+    # 2) If not found, pick the first list-column
+    if (is.null(loc_col)) {
+      for (nm in names(best)) {
+        if (is.list(best[[nm]])) { loc_col <- nm; break }
+      }
+    }
+
+    # 3) Extract for the requested rank, parsing if necessary
+    if (!is.null(loc_col)) {
+      colval <- best[[loc_col]][[market_rank]]
+      if (is.list(best[[loc_col]])) {
+        chosen_locs <- tolower(as.character(colval))
+      } else if (is.character(best[[loc_col]])) {
+        text <- best[[loc_col]][market_rank]
+        parsed <- NULL
+        # Try JSON-like first
+        suppressWarnings({
+          if (grepl("^\\[.*\\]$", text)) {
+            tmp <- try(jsonlite::fromJSON(text), silent = TRUE)
+            if (!inherits(tmp, "try-error")) parsed <- tmp
+          }
+        })
+        # Try c('a','b') pattern
+        if (is.null(parsed) && grepl("^c\\(.*\\)$", text)) {
+          inner <- sub("^c\\((.*)\\)$", "\\1", text)
+          parts <- strsplit(inner, ",")[[1]]
+          parts <- trimws(gsub("[\'\"]", "", parts))
+          parsed <- parts
+        }
+        # Fallback: split by comma/semicolon/space
+        if (is.null(parsed)) {
+          parts <- unlist(strsplit(text, "[,;]"))
+          parsed <- trimws(parts)
+        }
+        chosen_locs <- tolower(as.character(parsed))
+      }
+    }
+
+    # 4) Last resort: construct from any character column with many commas
+    if (is.null(chosen_locs) || length(chosen_locs) == 0) {
+      char_cols <- names(best)[sapply(best, is.character)]
+      if (length(char_cols) > 0) {
+        candidate <- char_cols[which.max(vapply(best[char_cols], function(x) {
+          mean(grepl(",", x))
+        }, numeric(1)))]
+        text <- best[[candidate]][market_rank]
+        parts <- unlist(strsplit(text, "[,;]"))
+        chosen_locs <- tolower(trimws(parts))
+      }
+    }
+
+    if (is.null(chosen_locs) || length(chosen_locs) == 0) {
+      res$status <- 500
+      return(list(error = "Could not detect locations column in BestMarkets"))
+    }
+
+    max_time <- max(df$time, na.rm = TRUE)
+    treatment_start_time <- max_time - treatment_periods + 1
+    treatment_end_time <- max_time
+
+    df$group <- ifelse(tolower(df$location) %in% chosen_locs, "Treatment", "Control")
+    obs <- df %>%
+      group_by(time, date, group) %>%
+      summarise(value = mean(Y, na.rm = TRUE), .groups = "drop") %>%
+      arrange(time)
+
+    obs <- obs %>%
+      group_by(group) %>%
+      arrange(time, .by_group = TRUE) %>%
+      mutate(value_smooth = zoo::rollmean(value, k = 7, fill = NA, align = "right")) %>%
+      ungroup()
+
+    power <- GeoLiftPower(
+      data = df,
+      locations = chosen_locs,
+      treatment_periods = treatment_periods,
+      effect_size = effect_size,
+      lookback_window = lookback_window,
+      cpic = cpic,
+      alpha = alpha,
+      parallel = FALSE
+    )
+
+    list(
+      success = TRUE,
+      selection = list(
+        market_rank = market_rank,
+        locations = chosen_locs
+      ),
+      treatment_window = list(
+        start_time = treatment_start_time,
+        end_time = treatment_end_time
+      ),
+      observations = obs,
+      power_curve = list(
+        effect_size = power$EffectSize,
+        power = power$power
+      )
+    )
+  }, error = function(e) {
+    res$status <- 500
+    list(error = paste("EDA plots failed:", e$message))
   })
 }

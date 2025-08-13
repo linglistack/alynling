@@ -56,7 +56,7 @@ const ConfigureExperiment = ({ processedData, onProceed }) => {
     setCells((prev) => prev.map((c, i) => (i === index ? { ...c, [field]: value } : c)));
   };
 
-  const canProceed = experimentName.trim().length > 0 && cells.every((c) => c.channelName.trim().length > 0);
+  const canProceed = experimentName.trim().length > 0;
 
   // Prefer explicit params from left panel; fall back to first cell data if present
   const treatmentPeriods = useMemo(() => {
@@ -89,6 +89,14 @@ const ConfigureExperiment = ({ processedData, onProceed }) => {
     try {
       setMsLoading(true);
       setMsError('');
+      console.log('[MarketSelection][request]', {
+        treatmentPeriods,
+        effectSize,
+        lookbackWindow,
+        cpic,
+        alpha,
+        dataRows: Array.isArray(processedData) ? processedData.length : undefined
+      });
       const resp = await geoliftAPI.marketSelection(processedData, {
         treatmentPeriods,
         effectSize,
@@ -96,9 +104,11 @@ const ConfigureExperiment = ({ processedData, onProceed }) => {
         cpic,
         alpha
       });
+      console.log('[MarketSelection][response]', resp);
       if (!resp.success) throw new Error('Market selection failed');
       setMarketCombos(resp.market_selection || []);
     } catch (e) {
+      console.error('[MarketSelection][error]', e);
       setMsError(e.message || 'Market selection failed');
     } finally {
       setMsLoading(false);
@@ -224,7 +234,7 @@ const ConfigureExperiment = ({ processedData, onProceed }) => {
               type="button"
               className={`primary-btn ${canProceed ? '' : 'disabled'}`}
               disabled={!canProceed}
-              onClick={() => onProceed && onProceed({ experimentName, numExperiments, cells })}
+              onClick={() => onProceed && onProceed({ experimentName, numExperiments, cells, msParams })}
             >
               Continue
             </button>
@@ -240,30 +250,55 @@ const ConfigureExperiment = ({ processedData, onProceed }) => {
           ) : msError ? (
             <div className="results-error">{msError}</div>
           ) : marketCombos && marketCombos.length > 0 ? (
-            <table className="combo-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Location</th>
-                  <th>Weight</th>
-                </tr>
-              </thead>
-              <tbody>
-                {marketCombos.slice(0, 15).map((row, i) => {
-                  const markets = row.Markets || row.Markets || '';
-                  const weightRaw = row.Weight || row.Weight || row.w || '';
-                  const weight = typeof weightRaw === 'number' ? weightRaw.toFixed(2) : weightRaw;
-                  const locText = Array.isArray(markets) ? markets.join(', ') : String(markets);
-                  return (
-                    <tr key={i}>
-                      <td>{i + 1}</td>
-                      <td className="loc-cell">{locText}</td>
-                      <td>{weight}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            (() => {
+              const first = marketCombos[0] || {};
+              const allKeys = Object.keys(first);
+
+              const humanize = (k) => k
+                .replace(/_/g, ' ')
+                .replace(/\b\w/g, c => c.toUpperCase());
+
+              const formatValue = (v, key) => {
+                if (Array.isArray(v)) return v.filter(Boolean).join(', ');
+                if (v == null) return '';
+                if (typeof v === 'object') return JSON.stringify(v);
+                if (typeof v === 'number') {
+                  if (/revenue|budget|amount|lift|value/i.test(key)) {
+                    return v.toLocaleString();
+                  }
+                  return v.toLocaleString();
+                }
+                return String(v);
+              };
+
+              const headers = ['#', ...allKeys];
+
+              return (
+                <div className="combo-table-wrapper">
+                  <table className="combo-table">
+                    <thead>
+                      <tr>
+                        {headers.map((h, idx) => (
+                          <th key={idx}>{idx === 0 ? '#' : humanize(h)}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {marketCombos.map((row, i) => (
+                        <tr key={i}>
+                          <td>{i + 1}</td>
+                          {allKeys.map((k, j) => (
+                            <td key={j} className={/location|market/i.test(k) ? 'loc-cell' : ''}>
+                              {formatValue(row[k], k)}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()
           ) : (
             <div className="results-placeholder">Adjust parameters and run to view candidate markets.</div>
           )}

@@ -235,6 +235,10 @@
     min-width: 0;
 }
 
+.configure-split.equal {
+    grid-template-columns: 50% 50%;
+}
+
 .ms-card {
     background: white;
     border: 1px solid #e5e7eb;
@@ -480,4 +484,23 @@
 
 .tooltip-content {
     opacity: 0.95;
+}
+
+.combo-table-wrapper {
+    width: 100%;
+    max-height: 650px;
+    overflow: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+}
+
+.combo-table {
+    min-width: 720px;
+}
+
+.combo-table thead th {
+    position: sticky;
+    top: 0;
+    background: #f9fafb;
+    z-index: 1;
 }
