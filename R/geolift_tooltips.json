@@ -1,0 +1,110 @@
+{
+  "data": {
+    "question": "N/A",
+    "example": "A table with columns like location, date, sales(Y), plus any extra columns you track.",
+    "defaults": { "required_columns": ["location", "time", "sales"] },
+    "omit": false
+  },
+  "treatment_periods": {
+    "question": "How long will the test run?",
+    "example": "“One purchase cycle” — e.g., 10 or 15 days for daily data.",
+    "defaults": [10, 15],
+    "omit": false
+  },
+  "N": {
+    "question": "How many locations will get the new ads?",
+    "example": "Start small (2–4) if budget is tight; more test markets = clearer signal.",
+    "defaults": [2, 3, 4],
+    "omit": false
+  },
+  "X": {
+    "question": "Any extra signals that help predict sales?",
+    "example": "Weather, store size, foot traffic — things that move sales but aren’t caused by the ads.",
+    "defaults": [],
+    "omit": false
+  },
+  "Y_id_location_id_time_id": {
+    "question": "What are the column names for outcome, location, and time?",
+    "example": "Use your column names if different: Y (sales), location (city), time (day index).",
+    "defaults": { "Y_id": "Y", "location_id": "location", "time_id": "time" },
+    "omit": false
+  },
+  "effect_size": {
+    "question": "How big of a sales increase would you count as a win?",
+    "example": "If usual sales are 1,000, a 5% lift means +50 sales.",
+    "defaults": [0.02, 0.05, 0.10, 0.15],
+    "omit": false
+  },
+  "lookback_window": {
+    "question": "How many recent possible test windows should we simulate power on?",
+    "example": "If data is stable, looking at the most recent window (1) is usually enough.",
+    "defaults": 1,
+    "omit": true
+  },
+  "include_markets": {
+    "question": "Must-include locations in the test group?",
+    "example": "“Always include Chicago in test.”",
+    "defaults": [],
+    "omit": false
+  },
+  "exclude_markets": {
+    "question": "Locations to keep out of the test group (still ok as controls)?",
+    "example": "“Exclude Honolulu (non-comparable market).”",
+    "defaults": [],
+    "omit": false
+  },
+  "holdout": {
+    "question": "What share of total conversions should NOT see ads (for a clean comparison)?",
+    "example": "Bigger holdout (e.g., 50–100%) gives a cleaner read but uses fewer test markets.",
+    "defaults": [0.5, 1.0],
+    "omit": false
+  },
+  "cpic": {
+    "question": "About how much do you spend to create one extra conversion?",
+    "example": "Use your MMM or past tests; if unknown, leave as 1 to see required incremental units.",
+    "defaults": 1,
+    "omit": false
+  },
+  "budget": {
+    "question": "What’s the max budget for this test?",
+    "example": "Leave blank if you want to explore all designs; set a cap to see feasible options.",
+    "defaults": null,
+    "omit": false
+  },
+  "alpha": {
+    "question": "How strict should the decision be (confidence level)?",
+    "example": "90% (alpha 0.10) is faster; 95% (alpha 0.05) is stricter evidence.",
+    "defaults": 0.10,
+    "omit": false
+  },
+  "model": {
+    "question": "Do you want an extra prediction model to help the fit?",
+    "example": "Use None for simple/stable data; try Ridge if pre-period fit is weak.",
+    "defaults": "None",
+    "omit": true
+  },
+  "fixed_effects": {
+    "question": "Treat each location’s baseline level as fixed (helps when series are stable)?",
+    "example": "If markets are steady across time, turning this on improves focus on week-to-week moves.",
+    "defaults": true,
+    "omit": true
+  },
+  "Correlations": {
+    "question": "Show how well test markets correlate with controls?",
+    "example": "Useful to judge representativeness for MMM calibration.",
+    "defaults": true,
+    "omit": true
+  },
+  "print": {
+    "question": "Print the top recommended designs in the console/log?",
+    "example": "Good for debugging and transparency.",
+    "defaults": false,
+    "omit": true
+  },
+  "side_of_test": {
+    "question": "Are we testing for any change or only an increase?",
+    "example": "Two-sided: any change; One-sided: only positive lift (or only negative if you’re cutting spend).",
+    "defaults": "two_sided",
+    "omit": false
+  }
+}
