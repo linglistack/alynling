@@ -1,0 +1,92 @@
+{
+  "id": {
+    "label": "Result ID",
+    "explanation": "Internal ID for a specific combo of test markets and duration.",
+    "example": "ID 12 refers to {Chicago, Portland} for 15 days.",
+    "why_it_matters": "Useful for plotting/keeping track of candidates.",
+    "omit": true
+  },
+  "location": {
+    "label": "Test markets",
+    "explanation": "Which places would be in the test group.",
+    "example": "Chicago, Cincinnati, Houston, Portland",
+    "why_it_matters": "Defines where ads run; affects match quality and power.",
+    "omit": false
+  },
+  "duration": {
+    "label": "Test length",
+    "explanation": "How many time points the test runs (e.g., days).",
+    "example": "15 (days)",
+    "why_it_matters": "Longer = more signal, but costs more time/budget.",
+    "omit": false
+  },
+  "EffectSize": {
+    "label": "Target lift (for power)",
+    "explanation": "Smallest % increase we want to reliably detect.",
+    "example": "0.05 (5%)",
+    "why_it_matters": "Sets the bar for what we call a meaningful win.",
+    "omit": false
+  },
+  "Power": {
+    "label": "Chance to detect that lift",
+    "explanation": "Probability the test would flag the target lift as real.",
+    "example": "0.82 (82%)",
+    "why_it_matters": "Higher is better; aim for ~80%+.",
+    "omit": false
+  },
+  "AvgScaledL2Imbalance": {
+    "label": "Fit score (pre-period)",
+    "explanation": "How well controls mimic test markets before ads (0=perfect, 1=poor).",
+    "example": "0.12",
+    "why_it_matters": "Better pre-fit → more trustworthy results.",
+    "omit": true
+  },
+  "Investment": {
+    "label": "Estimated spend needed",
+    "explanation": "Average budget needed to run a well-powered test (uses CPIC).",
+    "example": "$120,000",
+    "why_it_matters": "Helps decide if the design is financially feasible.",
+    "omit": false
+  },
+  "AvgATT": {
+    "label": "Avg extra per period",
+    "explanation": "Average incremental outcome per time step during the test.",
+    "example": "+180 units/day",
+    "why_it_matters": "Puts the effect in plain units, not just %.",
+    "omit": false
+  },
+  "Average_MDE": {
+    "label": "Smallest detectable lift (MDE)",
+    "explanation": "The tiniest % lift this design can reliably pick up.",
+    "example": "4.1%",
+    "why_it_matters": "If your expected lift is below MDE, redesign the test.",
+    "omit": false
+  },
+  "ProportionTotal_Y": {
+    "label": "Share of total conversions in test",
+    "explanation": "How much of all conversions come from the test markets.",
+    "example": "0.10 (10%)",
+    "why_it_matters": "Too tiny a share can hurt power and representativeness.",
+    "omit": false
+  },
+  "abs_lift_in_zero": {
+    "label": "Bias check at 0% lift",
+    "explanation": "Average ‘fake’ lift when the true lift is zero (should be near 0).",
+    "example": "0.003 (0.3%)",
+    "why_it_matters": "Catches designs that overstate lift even with no effect.",
+    "omit": true
+  },
+  "Holdout": {
+    "label": "Control share",
+    "explanation": "Percent of total conversions left in control markets.",
+    "example": "0.65 (65%)",
+    "why_it_matters": "More control often means cleaner comparisons.",
+    "omit": true
+  },
+  "rank": {
+    "label": "Overall rank",
+    "explanation": "Summary rank combining power, fit, MDE, and bias checks.",
+    "example": "2",
+    "why_it_matters": "Quick way to pick the best candidate designs."
+  }
+}
