@@ -1,9 +1,11 @@
 # Start the GeoLift API server for LOCAL DEVELOPMENT
 library(plumber)
 library(dplyr)
+library(foreach)
+library(doParallel)
 
 # Check if required packages are installed
-required_packages <- c("plumber", "jsonlite", "dplyr", "augsynth", "tidyr")
+required_packages <- c("plumber", "jsonlite", "dplyr", "augsynth", "tidyr", "foreach", "doParallel")
 missing_packages <- required_packages[!sapply(required_packages, require, quietly = TRUE, character.only = TRUE)]
 
 if (length(missing_packages) > 0) {

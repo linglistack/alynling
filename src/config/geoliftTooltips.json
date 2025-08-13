@@ -1,0 +1,35 @@
+{
+    "treatment_periods": {
+        "question": "How long will the test run?",
+        "example": "One purchase cycle — e.g., 10 or 15 days for daily data.",
+        "defaults": [
+            10,
+            15
+        ]
+    },
+    "effect_size": {
+        "question": "How big of a lift would you count as a win?",
+        "example": "If usual sales are 1,000, a 5% lift means +50 sales.",
+        "defaults": [
+            0.02,
+            0.05,
+            0.10,
+            0.15
+        ]
+    },
+    "lookback_window": {
+        "question": "How many recent possible test windows should we simulate power on?",
+        "example": "If data is stable, looking at the most recent window (1) is usually enough.",
+        "defaults": 1
+    },
+    "cpic": {
+        "question": "About how much do you spend to create one extra conversion?",
+        "example": "Use your MMM or past tests; if unknown, leave as 1 to see required incremental units.",
+        "defaults": 1
+    },
+    "alpha": {
+        "question": "How strict should the decision be (confidence level)?",
+        "example": "90% (alpha 0.10) is faster; 95% (alpha 0.05) is stricter evidence.",
+        "defaults": 0.10
+    }
+}

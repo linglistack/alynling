@@ -2,6 +2,8 @@
 library(plumber)
 library(jsonlite)
 library(dplyr)
+library(foreach)
+library(doParallel)
 
 # Source all GeoLift R files - use dynamic paths
 project_root <- getwd()
@@ -20,7 +22,9 @@ if (file.exists("api/geolift_api.R")) {
   }
 }
 
+suppressMessages({
 source(file.path(r_path, "imports.R"))
+})
 source(file.path(r_path, "auxiliary.R"))
 source(file.path(r_path, "data.R"))
 source(file.path(r_path, "MultiCell.R"))
@@ -74,20 +78,40 @@ function(req, res) {
     processed_data <- data %>%
       rename(
         location = !!sym(location_col),
-        date = !!sym(time_col), 
+        date_raw = !!sym(time_col), 
         Y = !!sym(outcome_col)
       ) %>%
       mutate(
-        location = tolower(location),
-        date = as.Date(date),
-        Y = as.numeric(Y)
-      ) %>%
+        location = tolower(trimws(as.character(location))),
+        Y = as.numeric(Y),
+        # Robust date parsing: try ISO first, then common formats
+        # Normalize date text before parsing
+        date_clean = trimws(as.character(date_raw)),
+        date = suppressWarnings(as.Date(date_clean))
+      )
+
+    # If date is NA for many rows, try alternative formats
+    if (any(is.na(processed_data$date))) {
+      suppressWarnings({
+        alt <- try(as.Date(processed_data$date_clean, format = "%m/%d/%Y"), silent = TRUE)
+        if (!inherits(alt, "try-error")) {
+          idx <- is.na(processed_data$date) & !is.na(alt)
+          processed_data$date[idx] <- alt[idx]
+        }
+      })
+      suppressWarnings({
+        alt2 <- try(as.Date(processed_data$date_clean, format = "%d/%m/%Y"), silent = TRUE)
+        if (!inherits(alt2, "try-error")) {
+          idx2 <- is.na(processed_data$date) & !is.na(alt2)
+          processed_data$date[idx2] <- alt2[idx2]
+        }
+      })
+    }
+
+    processed_data <- processed_data %>%
       filter(!is.na(Y), !is.na(date)) %>%
       arrange(location, date) %>%
-      # Convert dates to sequential time periods
-      mutate(
-        time = as.numeric(date - min(date, na.rm = TRUE)) + 1
-      )
+      mutate(time = as.numeric(date - min(date, na.rm = TRUE)) + 1)
     
     locations <- unique(processed_data$location)
     time_periods <- sort(unique(processed_data$time))
@@ -103,7 +127,7 @@ function(req, res) {
         num_locations = length(locations),
         time_periods = range(time_periods),
         num_time_periods = length(time_periods),
-        date_range = date_range,
+        date_range = as.character(date_range),
         date_to_time_mapping = data.frame(
           date = sort(unique(processed_data$date)),
           time = sort(unique(processed_data$time))
@@ -135,7 +159,11 @@ function(req, res) {
     
     data <- as.data.frame(data)
     
-    market_selection <- GeoLiftMarketSelection(
+    # Ensure foreach backend available if GeoLift uses it
+if (!is.null(getOption('mc.cores')) && getOption('mc.cores') > 1) {
+  doParallel::registerDoParallel(parallel::detectCores())
+}
+market_selection <- GeoLiftMarketSelection(
       data = data,
       treatment_periods = treatment_periods,
       effect_size = effect_size,

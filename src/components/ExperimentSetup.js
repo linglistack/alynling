@@ -1,190 +1,165 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import IngestDataStep from './IngestDataStep';
+import ConfigureExperiment from './ConfigureExperiment';
+import { geoliftAPI } from '../utils/geoliftAPI';
 import './ExperimentSetup.css';
 
 const ExperimentSetup = ({ onBack }) => {
-  const [experimentType, setExperimentType] = useState('split');
-  const [dateRange, setDateRange] = useState('Mar 1 - Mar 8, 2024');
-  const [endWithSignificance, setEndWithSignificance] = useState(false);
-  const [selectedSegments, setSelectedSegments] = useState('');
-  const [selectedKPI, setSelectedKPI] = useState('');
-  const [autoSplit, setAutoSplit] = useState(false);
-  const [splits, setSplits] = useState([
-    {
-      id: 1,
-      name: 'Control',
-      destination: '',
-      percentage: 10
-    },
-    {
-      id: 2,
-      name: 'Treatment A',
-      destination: '',
-      percentage: 90
-    }
-  ]);
+  const [currentStep, setCurrentStep] = useState(1);
 
-  const addSplit = () => {
-    const newSplit = {
-      id: splits.length + 1,
-      name: `Treatment ${String.fromCharCode(65 + splits.length - 1)}`,
-      destination: '',
-      percentage: 0
+  // Controlled Step 1 state so we can validate and proceed
+  const [selectedFile, setSelectedFile] = useState('');
+  const [fileData, setFileData] = useState(null);
+  const [dateColumn, setDateColumn] = useState('date');
+  const [outcomeColumn, setOutcomeColumn] = useState('Y');
+  const [locationColumn, setLocationColumn] = useState('location');
+  const [containsZipCodes, setContainsZipCodes] = useState(false);
+  const [dateFormat, setDateFormat] = useState('mm/dd/yy');
+  const [activeTab, setActiveTab] = useState('data');
+  const [useDefaultFile, setUseDefaultFile] = useState(false);
+  const [availableLocations, setAvailableLocations] = useState([]);
+  const [selectedTestLocations, setSelectedTestLocations] = useState([]);
+  const [testLocations, setTestLocations] = useState('');
+
+  const [processedData, setProcessedData] = useState(null);
+  const [uploadError, setUploadError] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+
+  const canProceed = !!fileData && !isUploading;
+
+  const convertToCsvString = (data) => {
+    if (!data || !data.rows) return '';
+    const headers = (data.headers || []).map(h => String(h).trim().toLowerCase());
+    const toKey = (s) => String(s || '').trim().toLowerCase();
+    const findIdx = (name, fallbacks = []) => {
+      const targets = [name, ...fallbacks].map(toKey);
+      for (let t of targets) {
+        const idx = headers.indexOf(t);
+        if (idx !== -1) return idx;
+      }
+      return -1;
     };
-    setSplits([...splits, newSplit]);
+
+    const locIdx = findIdx(locationColumn, ['city', 'location_id', 'geo', 'market']);
+    const yIdx = findIdx(outcomeColumn, ['y', 'outcome', 'app_download', 'revenue', 'sales']);
+    const dateIdx = findIdx(dateColumn, ['date', 'time', 'timestamp', 'day']);
+
+    if (locIdx === -1 || yIdx === -1 || dateIdx === -1) return '';
+
+    const headerRow = 'location,Y,date';
+    const dataRows = data.rows.map(row => {
+      const location = (row[locIdx] || '').trim();
+      const outcome = (row[yIdx] || '').trim();
+      const date = (row[dateIdx] || '').trim();
+      return `${location},${outcome},${date}`;
+    });
+    return [headerRow, ...dataRows].join('\n');
   };
 
-  const updateSplit = (id, field, value) => {
-    setSplits(splits.map(split => 
-      split.id === id ? { ...split, [field]: value } : split
-    ));
+  const handleIngestNext = async () => {
+    if (!fileData) return;
+    try {
+      setIsUploading(true);
+      setUploadError('');
+      const csv = convertToCsvString(fileData);
+      const uploadResult = await geoliftAPI.uploadData(csv, {
+        locationCol: 'location',
+        timeCol: 'date',
+        outcomeCol: 'Y'
+      });
+      if (!uploadResult.success) {
+        throw new Error('Failed to upload data');
+      }
+      setProcessedData(uploadResult.data);
+      setCurrentStep(2);
+    } catch (e) {
+      setUploadError(e.message || 'Upload failed');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
     <div className="experiment-setup">
-      <div className="setup-header">
-        <button className="back-button" onClick={onBack}>
+      <div className="stepper-header">
+        <button className="back-button header-back" onClick={onBack}>
           <ArrowLeft size={20} />
-          Name your experiment
+          Back
         </button>
-        <button className="create-experiment-btn">
-          Create Experiment
-        </button>
-      </div>
-
-      <div className="setup-content">
-        <div className="setup-form">
-          <h1>Setup your Experiment</h1>
-          <p className="subtitle">Design and setup your experiment</p>
-
-          <div className="form-section">
-            <h3>Experiment Type</h3>
-            <div className="radio-group">
-              <label className="radio-label">
-                <input
-                  type="radio"
-                  name="experimentType"
-                  value="split"
-                  checked={experimentType === 'split'}
-                  onChange={(e) => setExperimentType(e.target.value)}
-                />
-                <span className="radio-custom"></span>
-                Split Testing
-              </label>
-              <label className="radio-label">
-                <input
-                  type="radio"
-                  name="experimentType"
-                  value="geo"
-                  checked={experimentType === 'geo'}
-                  onChange={(e) => setExperimentType(e.target.value)}
-                />
-                <span className="radio-custom"></span>
-                Geo Testing
-              </label>
-            </div>
+        <div className="stepper">
+          <div className={`step ${currentStep >= 1 ? 'active' : ''}`}>
+            <div className="step-circle">1</div>
+            <div className="step-label">Ingest data</div>
           </div>
-
-          <div className="form-section">
-            <h3>Experiment Duration</h3>
-            <input
-              type="text"
-              className="date-input"
-              value={dateRange}
-              onChange={(e) => setDateRange(e.target.value)}
-            />
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={endWithSignificance}
-                onChange={(e) => setEndWithSignificance(e.target.checked)}
-              />
-              <span className="checkbox-custom"></span>
-              End Test using statistical significance
-            </label>
+          <div className={`step-connector ${currentStep >= 2 ? 'active' : ''}`}></div>
+          <div className={`step ${currentStep >= 2 ? 'active' : ''}`}>
+            <div className="step-circle">2</div>
+            <div className="step-label">Configure</div>
           </div>
-
-          <div className="form-section">
-            <h3>Segments & Lists</h3>
-            <select
-              className="select-input"
-              value={selectedSegments}
-              onChange={(e) => setSelectedSegments(e.target.value)}
-            >
-              <option value="">Select Segments & Lists</option>
-              <option value="all">All Contacts</option>
-              <option value="new">New Contacts</option>
-            </select>
-            <p className="contact-count">0 Contacts</p>
-          </div>
-
-          <div className="form-section">
-            <h3>Outcome / KPI</h3>
-            <select
-              className="select-input"
-              value={selectedKPI}
-              onChange={(e) => setSelectedKPI(e.target.value)}
-            >
-              <option value="">Select Outcome / KPI</option>
-              <option value="revenue">Revenue</option>
-              <option value="conversion">Conversion Rate</option>
-              <option value="clicks">Click Rate</option>
-            </select>
-          </div>
-
-          <div className="form-section">
-            <h3>Splits</h3>
-            <div className="auto-split-toggle">
-              <label className="toggle-label">
-                <input
-                  type="checkbox"
-                  checked={autoSplit}
-                  onChange={(e) => setAutoSplit(e.target.checked)}
-                />
-                <span className="toggle-slider"></span>
-                Auto Split
-              </label>
-            </div>
-
-            {splits.map((split) => (
-              <div key={split.id} className="split-row">
-                <div className="split-name">
-                  <input
-                    type="text"
-                    value={split.name}
-                    onChange={(e) => updateSplit(split.id, 'name', e.target.value)}
-                    className="text-input"
-                  />
-                </div>
-                <div className="split-destination">
-                  <select
-                    className="select-input"
-                    value={split.destination}
-                    onChange={(e) => updateSplit(split.id, 'destination', e.target.value)}
-                  >
-                    <option value="">Select Destination</option>
-                    <option value="landing-a">Landing Page A</option>
-                    <option value="landing-b">Landing Page B</option>
-                  </select>
-                </div>
-                <div className="split-percentage">
-                  <input
-                    type="number"
-                    value={split.percentage}
-                    onChange={(e) => updateSplit(split.id, 'percentage', parseInt(e.target.value) || 0)}
-                    className="percentage-input"
-                  />
-                  <span className="percentage-symbol">%</span>
-                </div>
-              </div>
-            ))}
-
-            <button className="add-split-btn" onClick={addSplit}>
-              <Plus size={16} />
-              + Add Split
-            </button>
+          <div className={`step-connector ${currentStep >= 3 ? 'active' : ''}`}></div>
+          <div className={`step ${currentStep >= 3 ? 'active' : ''}`}>
+            <div className="step-circle">3</div>
+            <div className="step-label">Analyze</div>
           </div>
         </div>
+      </div>
+
+      <div className="setup-body">
+        {currentStep === 1 && (
+          <>
+            <IngestDataStep
+              onBack={onBack}
+              withPageWrapper={false}
+              showHeader={false}
+              selectedFile={selectedFile}
+              setSelectedFile={setSelectedFile}
+              fileData={fileData}
+              setFileData={setFileData}
+              dateColumn={dateColumn}
+              setDateColumn={setDateColumn}
+              outcomeColumn={outcomeColumn}
+              setOutcomeColumn={setOutcomeColumn}
+              locationColumn={locationColumn}
+              setLocationColumn={setLocationColumn}
+              containsZipCodes={containsZipCodes}
+              setContainsZipCodes={setContainsZipCodes}
+              dateFormat={dateFormat}
+              setDateFormat={setDateFormat}
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              useDefaultFile={useDefaultFile}
+              setUseDefaultFile={setUseDefaultFile}
+              availableLocations={availableLocations}
+              setAvailableLocations={setAvailableLocations}
+              selectedTestLocations={selectedTestLocations}
+              setSelectedTestLocations={setSelectedTestLocations}
+              testLocations={testLocations}
+              setTestLocations={setTestLocations}
+            />
+
+            {uploadError && <div className="upload-error">{uploadError}</div>}
+            <div className="step-actions">
+              <button
+                className={`ingest-next-btn ${canProceed ? '' : 'disabled'}`}
+                disabled={!canProceed}
+                onClick={handleIngestNext}
+              >
+                {isUploading ? 'Processing…' : 'Ingest Data'}
+              </button>
+            </div>
+          </>
+        )}
+
+        {currentStep === 2 && (
+          <ConfigureExperiment processedData={processedData} onProceed={() => setCurrentStep(3)} />
+        )}
+
+        {currentStep === 3 && (
+          <div className="configure-step">
+            <div className="configure-header">Step 3: Analyze</div>
+          </div>
+        )}
       </div>
     </div>
   );
