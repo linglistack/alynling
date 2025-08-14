@@ -7,7 +7,9 @@ import {
   Link, 
   HelpCircle,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  BookOpen,
+  FileText
 } from 'lucide-react';
 import './Sidebar.css';
 
@@ -47,6 +49,16 @@ const Sidebar = ({ activeMenuItem, setActiveMenuItem, expandedMenu, setExpandedM
       hasDropdown: true,
       subItems: [
         { id: 'integrations', label: 'Integrations' }
+      ]
+    },
+    { 
+      id: 'resources', 
+      label: 'Resources', 
+      icon: BookOpen, 
+      hasDropdown: true,
+      subItems: [
+        { id: 'blog', label: 'Blog' },
+        { id: 'faqs', label: 'FAQs' }
       ]
     },
     { id: 'support', label: 'Support', icon: HelpCircle }

@@ -10,6 +10,8 @@ import ModelCreation from './components/ModelCreation';
 import MMMDetail from './components/MMMDetail';
 import Integrations from './components/Integrations';
 import IntegrationDetail from './components/IntegrationDetail';
+import Blog from './components/Blog';
+import FAQs from './components/FAQs';
 import './App.css';
 
 function App() {
@@ -128,6 +130,10 @@ function App() {
           <MMM onCreateModel={handleCreateModel} onModelClick={handleModelClick} />
         ) : activeMenuItem === 'experiments' && showExperimentDetail ? (
           <ExperimentDetail experiment={selectedExperiment} onBack={handleBackToExperiments} />
+        ) : activeMenuItem === 'blog' ? (
+          <Blog onBack={() => setActiveMenuItem('experiments')} />
+        ) : activeMenuItem === 'faqs' ? (
+          <FAQs onBack={() => setActiveMenuItem('experiments')} />
         ) : (
           <MainContent 
             onCreateExperiment={handleCreateExperiment}
