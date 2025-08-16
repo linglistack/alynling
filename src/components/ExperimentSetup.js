@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import IngestDataStep from './IngestDataStep';
 import ConfigureExperiment from './ConfigureExperiment';
@@ -27,8 +27,143 @@ const ExperimentSetup = ({ onBack }) => {
   const [uploadError, setUploadError] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [configSummary, setConfigSummary] = useState(null);
+  
+  // Cache API results to prevent re-running when navigating back
+  const [cachedMarketSelection, setCachedMarketSelection] = useState(null);
+  const [cachedAnalysisResults, setCachedAnalysisResults] = useState(null);
+  
+  // Track pre-call loading state to prevent duplicate API calls
+  const [isPreCallingMarketSelection, setIsPreCallingMarketSelection] = useState(false);
 
-  const canProceed = !!fileData && !isUploading;
+  const canProceed = !!fileData;
+
+  // Navigation functions
+  const goToStep = (step) => {
+    if (step === 1) {
+      setCurrentStep(1);
+    } else if (step === 2 && processedData) {
+      setCurrentStep(2);
+    } else if (step === 3 && processedData && configSummary) {
+      setCurrentStep(3);
+    }
+  };
+
+  const goToPreviousStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  // Pre-call market selection when fileData is processed
+  useEffect(() => {
+    const preCallMarketSelection = async () => {
+      if (!fileData || !fileData.rows || fileData.rows.length === 0) {
+        setIsPreCallingMarketSelection(false);
+        return;
+      }
+      
+      // Don't start new pre-call if one is already in progress
+      if (isPreCallingMarketSelection) {
+        console.log('[CreateExperiment] Pre-call already in progress, skipping...');
+        return;
+      }
+      
+      try {
+        setIsPreCallingMarketSelection(true);
+        console.log('[CreateExperiment] Pre-calling market selection after file upload...');
+        
+        // Process data locally first
+        const headers = (fileData.headers || []).map(h => String(h).trim().toLowerCase());
+        const toKey = (s) => String(s || '').trim().toLowerCase();
+        const findIdx = (name, fallbacks = []) => {
+          const targets = [name, ...fallbacks].map(toKey);
+          for (let t of targets) {
+            const idx = headers.indexOf(t);
+            if (idx !== -1) return idx;
+          }
+          return -1;
+        };
+
+        const locIdx = findIdx(locationColumn, ['city', 'location_id', 'geo', 'market']);
+        const yIdx = findIdx(outcomeColumn, ['y', 'outcome', 'app_download', 'revenue', 'sales']);
+        const dateIdx = findIdx(dateColumn, ['date', 'time', 'timestamp', 'day']);
+
+        if (locIdx === -1 || yIdx === -1 || dateIdx === -1) {
+          console.log('[CreateExperiment] Cannot pre-call market selection: missing required columns');
+          return;
+        }
+
+                 // Transform data to standard format locally
+         const rawRows = fileData.rows.map(row => ({
+           location: (row[locIdx] || '').trim().toLowerCase(),
+           Y: parseFloat(row[yIdx]) || 0,
+           date: (row[dateIdx] || '').trim()
+         })).filter(row => row.location && row.date);
+
+         if (rawRows.length === 0) {
+           console.log('[CreateExperiment] Cannot pre-call market selection: no valid data rows');
+           return;
+         }
+
+         // Convert dates to time periods (required by GeoLiftMarketSelection)
+         const sortedDates = [...new Set(rawRows.map(row => row.date))].sort();
+         const dateToTime = {};
+         sortedDates.forEach((date, index) => {
+           dateToTime[date] = index + 1;
+         });
+
+         const processedRows = rawRows.map(row => ({
+           location: row.location,
+           Y: row.Y,
+           date: row.date,
+           time: dateToTime[row.date]
+         }));
+
+         console.log('[CreateExperiment] Data transformation:', {
+           totalRows: processedRows.length,
+           sampleRow: processedRows[0],
+           dateMapping: `${sortedDates.length} unique dates mapped to time 1-${sortedDates.length}`
+         });
+
+        // Call market selection with default parameters
+        const defaultParams = {
+          treatmentPeriods: 28,
+          effectSize: [0, 0.05, 0.1, 0.15, 0.2, 0.25],
+          lookbackWindow: 1,
+          cpic: 1,
+          alpha: 0.1
+        };
+        
+        const resp = await geoliftAPI.marketSelection(processedRows, defaultParams);
+        
+        if (resp.success) {
+          // Cache the default market selection results
+          setCachedMarketSelection({
+            marketCombos: resp.market_selection || [],
+            msError: '',
+            timestamp: Date.now(),
+            dependencies: {
+              treatmentPeriods: defaultParams.treatmentPeriods,
+              effectSize: defaultParams.effectSize,
+              lookbackWindow: defaultParams.lookbackWindow,
+              cpic: defaultParams.cpic,
+              alpha: defaultParams.alpha,
+              dataLength: processedRows.length
+            }
+          });
+          console.log('[CreateExperiment] Market selection pre-cached successfully');
+        } else {
+          console.log('[CreateExperiment] Market selection pre-call failed:', resp.error);
+        }
+      } catch (e) {
+        console.log('[CreateExperiment] Market selection pre-call error (non-blocking):', e.message);
+      } finally {
+        setIsPreCallingMarketSelection(false);
+      }
+    };
+
+    preCallMarketSelection();
+  }, [fileData, locationColumn, outcomeColumn, dateColumn]); // Re-run when file or column mappings change
 
   const convertToCsvString = (data) => {
     if (!data || !data.rows) return '';
@@ -59,26 +194,69 @@ const ExperimentSetup = ({ onBack }) => {
     return [headerRow, ...dataRows].join('\n');
   };
 
-  const handleIngestNext = async () => {
+  const handleIngestNext = () => {
     if (!fileData) return;
+    
     try {
-      setIsUploading(true);
       setUploadError('');
-      const csv = convertToCsvString(fileData);
-      const uploadResult = await geoliftAPI.uploadData(csv, {
-        locationCol: 'location',
-        timeCol: 'date',
-        outcomeCol: 'Y'
-      });
-      if (!uploadResult.success) {
-        throw new Error('Failed to upload data');
+      
+      // Process data locally for Create Experiment flow
+      const headers = (fileData.headers || []).map(h => String(h).trim().toLowerCase());
+      const toKey = (s) => String(s || '').trim().toLowerCase();
+      const findIdx = (name, fallbacks = []) => {
+        const targets = [name, ...fallbacks].map(toKey);
+        for (let t of targets) {
+          const idx = headers.indexOf(t);
+          if (idx !== -1) return idx;
+        }
+        return -1;
+      };
+
+      const locIdx = findIdx(locationColumn, ['city', 'location_id', 'geo', 'market']);
+      const yIdx = findIdx(outcomeColumn, ['y', 'outcome', 'app_download', 'revenue', 'sales']);
+      const dateIdx = findIdx(dateColumn, ['date', 'time', 'timestamp', 'day']);
+
+      if (locIdx === -1 || yIdx === -1 || dateIdx === -1) {
+        throw new Error('Unable to map required columns. Please check your column mappings.');
       }
-      setProcessedData(uploadResult.data);
+
+      // Transform data to standard format locally
+      const rawRows = fileData.rows.map(row => ({
+        location: (row[locIdx] || '').trim().toLowerCase(),
+        Y: parseFloat(row[yIdx]) || 0,
+        date: (row[dateIdx] || '').trim()
+      })).filter(row => row.location && row.date);
+
+      if (rawRows.length === 0) {
+        throw new Error('No valid data rows found after processing.');
+      }
+
+      // Convert dates to time periods (required by GeoLiftMarketSelection)
+      const sortedDates = [...new Set(rawRows.map(row => row.date))].sort();
+      const dateToTime = {};
+      sortedDates.forEach((date, index) => {
+        dateToTime[date] = index + 1;
+      });
+
+      const processedRows = rawRows.map(row => ({
+        location: row.location,
+        Y: row.Y,
+        date: row.date,
+        time: dateToTime[row.date]
+      }));
+
+      console.log('[CreateExperiment] Processed data locally:', {
+        totalRows: processedRows.length,
+        sampleRow: processedRows[0],
+        columns: { locationColumn, outcomeColumn, dateColumn },
+        dateMapping: `${sortedDates.length} unique dates mapped to time 1-${sortedDates.length}`
+      });
+
+      setProcessedData(processedRows);
       setCurrentStep(2);
+      
     } catch (e) {
-      setUploadError(e.message || 'Upload failed');
-    } finally {
-      setIsUploading(false);
+      setUploadError(e.message || 'Data processing failed');
     }
   };
 
@@ -90,17 +268,29 @@ const ExperimentSetup = ({ onBack }) => {
           Back
         </button>
         <div className="stepper">
-          <div className={`step ${currentStep >= 1 ? 'active' : ''}`}>
+          <div 
+            className={`step ${currentStep >= 1 ? 'active' : ''} ${currentStep === 1 ? 'current' : ''}`}
+            onClick={() => goToStep(1)}
+            style={{ cursor: 'pointer' }}
+          >
             <div className="step-circle">1</div>
             <div className="step-label">Ingest data</div>
           </div>
           <div className={`step-connector ${currentStep >= 2 ? 'active' : ''}`}></div>
-          <div className={`step ${currentStep >= 2 ? 'active' : ''}`}>
+          <div 
+            className={`step ${currentStep >= 2 ? 'active' : ''} ${currentStep === 2 ? 'current' : ''} ${!processedData ? 'disabled' : ''}`}
+            onClick={() => goToStep(2)}
+            style={{ cursor: processedData ? 'pointer' : 'not-allowed' }}
+          >
             <div className="step-circle">2</div>
             <div className="step-label">Configure</div>
           </div>
           <div className={`step-connector ${currentStep >= 3 ? 'active' : ''}`}></div>
-          <div className={`step ${currentStep >= 3 ? 'active' : ''}`}>
+          <div 
+            className={`step ${currentStep >= 3 ? 'active' : ''} ${currentStep === 3 ? 'current' : ''} ${!configSummary ? 'disabled' : ''}`}
+            onClick={() => goToStep(3)}
+            style={{ cursor: (processedData && configSummary) ? 'pointer' : 'not-allowed' }}
+          >
             <div className="step-circle">3</div>
             <div className="step-label">Analyze</div>
           </div>
@@ -147,18 +337,51 @@ const ExperimentSetup = ({ onBack }) => {
                 disabled={!canProceed}
                 onClick={handleIngestNext}
               >
-                {isUploading ? 'Processing…' : 'Ingest Data'}
+                Next
               </button>
             </div>
           </>
         )}
 
         {currentStep === 2 && (
-          <ConfigureExperiment processedData={processedData} onProceed={(payload) => { setConfigSummary(payload); setCurrentStep(3); }} />
+          <>
+            <div className="step-navigation">
+              <button 
+                className="nav-button prev-button"
+                onClick={goToPreviousStep}
+              >
+                <ArrowLeft size={16} />
+                Previous: Ingest Data
+              </button>
+            </div>
+            <ConfigureExperiment 
+              processedData={processedData} 
+              onProceed={(payload) => { setConfigSummary(payload); setCurrentStep(3); }}
+              cachedResults={cachedMarketSelection}
+              onCacheResults={setCachedMarketSelection}
+              isPreCallingMarketSelection={isPreCallingMarketSelection}
+            />
+          </>
         )}
 
         {currentStep === 3 && (
-          <AnalyzeExperiment processedData={processedData} config={configSummary} />
+          <>
+            <div className="step-navigation">
+              <button 
+                className="nav-button prev-button"
+                onClick={goToPreviousStep}
+              >
+                <ArrowLeft size={16} />
+                Previous: Configure
+              </button>
+            </div>
+            <AnalyzeExperiment 
+              processedData={processedData} 
+              config={configSummary}
+              cachedResults={cachedAnalysisResults}
+              onCacheResults={setCachedAnalysisResults}
+            />
+          </>
         )}
       </div>
     </div>

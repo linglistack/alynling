@@ -19,7 +19,7 @@ const getTip = (id) => ({
   content: (tooltips[id] && tooltips[id].example) || ''
 });
 
-const ConfigureExperiment = ({ processedData, onProceed }) => {
+const ConfigureExperiment = ({ processedData, onProceed, cachedResults, onCacheResults, isPreCallingMarketSelection }) => {
   const [experimentName, setExperimentName] = useState('');
   const [numExperiments, setNumExperiments] = useState(1);
   const [cells, setCells] = useState([makeEmptyCell(0)]);
@@ -37,6 +37,24 @@ const ConfigureExperiment = ({ processedData, onProceed }) => {
   const [msLoading, setMsLoading] = useState(false);
   const [msError, setMsError] = useState('');
   const [marketCombos, setMarketCombos] = useState([]);
+
+  // Initialize from cache if available
+  useEffect(() => {
+    if (cachedResults && cachedResults.marketCombos) {
+      console.log('[ConfigureExperiment] Loading from cache:', cachedResults);
+      setMarketCombos(cachedResults.marketCombos);
+      setMsError(cachedResults.msError || '');
+      setMsLoading(false);
+    }
+  }, [cachedResults]);
+
+  // Handle pre-call completion
+  useEffect(() => {
+    if (!isPreCallingMarketSelection && cachedResults) {
+      console.log('[ConfigureExperiment] Pre-call completed, using cached results');
+      setMsLoading(false);
+    }
+  }, [isPreCallingMarketSelection, cachedResults]);
 
   useEffect(() => {
     setCells((prev) => {
@@ -106,19 +124,91 @@ const ConfigureExperiment = ({ processedData, onProceed }) => {
       });
       console.log('[MarketSelection][response]', resp);
       if (!resp.success) throw new Error('Market selection failed');
-      setMarketCombos(resp.market_selection || []);
+      const combos = resp.market_selection || [];
+      setMarketCombos(combos);
+      
+      // Cache the results with dependency fingerprint
+      if (onCacheResults) {
+        onCacheResults({
+          marketCombos: combos,
+          msError: '',
+          timestamp: Date.now(),
+          // Store dependency values to detect changes
+          dependencies: {
+            treatmentPeriods,
+            effectSize,
+            lookbackWindow,
+            cpic,
+            alpha,
+            dataLength: Array.isArray(processedData) ? processedData.length : 0
+          }
+        });
+      }
     } catch (e) {
       console.error('[MarketSelection][error]', e);
-      setMsError(e.message || 'Market selection failed');
+      const errorMsg = e.message || 'Market selection failed';
+      setMsError(errorMsg);
+      
+      // Cache the error state with dependency fingerprint
+      if (onCacheResults) {
+        onCacheResults({
+          marketCombos: [],
+          msError: errorMsg,
+          timestamp: Date.now(),
+          dependencies: {
+            treatmentPeriods,
+            effectSize,
+            lookbackWindow,
+            cpic,
+            alpha,
+            dataLength: Array.isArray(processedData) ? processedData.length : 0
+          }
+        });
+      }
     } finally {
       setMsLoading(false);
     }
   };
 
   useEffect(() => {
-    runMarketSelection();
+    // Don't run if pre-call is in progress - wait for it to complete
+    if (isPreCallingMarketSelection) {
+      console.log('[ConfigureExperiment] Pre-call in progress, waiting...');
+      setMsLoading(true);
+      return;
+    }
+
+    // Check if we need to invalidate cache due to dependency changes
+    const currentDeps = {
+      treatmentPeriods,
+      effectSize,
+      lookbackWindow,
+      cpic,
+      alpha,
+      dataLength: Array.isArray(processedData) ? processedData.length : 0
+    };
+
+    const shouldInvalidateCache = cachedResults && cachedResults.dependencies && (
+      cachedResults.dependencies.treatmentPeriods !== currentDeps.treatmentPeriods ||
+      cachedResults.dependencies.lookbackWindow !== currentDeps.lookbackWindow ||
+      cachedResults.dependencies.cpic !== currentDeps.cpic ||
+      cachedResults.dependencies.alpha !== currentDeps.alpha ||
+      cachedResults.dependencies.dataLength !== currentDeps.dataLength ||
+      JSON.stringify(cachedResults.dependencies.effectSize) !== JSON.stringify(currentDeps.effectSize)
+    );
+
+    // Run API if no cache or if dependencies changed (but not if pre-call is running)
+    if (!cachedResults || shouldInvalidateCache) {
+      if (shouldInvalidateCache) {
+        console.log('[ConfigureExperiment] Cache invalidated due to dependency changes:', {
+          cached: cachedResults.dependencies,
+          current: currentDeps
+        });
+      }
+      runMarketSelection();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [processedData, treatmentPeriods, cpic, lookbackWindow, alpha, msParams.effectSizeCsv]);
+  }, [processedData, treatmentPeriods, cpic, lookbackWindow, alpha, msParams.effectSizeCsv, cachedResults, isPreCallingMarketSelection]);
 
   return (
     <div className="configure-split">
@@ -236,7 +326,7 @@ const ConfigureExperiment = ({ processedData, onProceed }) => {
               disabled={!canProceed}
               onClick={() => onProceed && onProceed({ experimentName, numExperiments, cells, msParams })}
             >
-              Continue
+              Next
             </button>
           </div>
         </div>

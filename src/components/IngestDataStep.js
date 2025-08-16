@@ -40,8 +40,8 @@ const IngestDataStep = ({
   const [internalSelectedFile, setInternalSelectedFile] = useState('');
   const [internalFileData, setInternalFileData] = useState(null);
   const [internalDateColumn, setInternalDateColumn] = useState('date');
-  const [internalOutcomeColumn, setInternalOutcomeColumn] = useState('Y');
-  const [internalLocationColumn, setInternalLocationColumn] = useState('location');
+  const [internalOutcomeColumn, setInternalOutcomeColumn] = useState('app_download');
+  const [internalLocationColumn, setInternalLocationColumn] = useState('city');
   const [internalContainsZipCodes, setInternalContainsZipCodes] = useState(false);
   const [internalDateFormat, setInternalDateFormat] = useState('mm/dd/yy');
   const [internalActiveTab, setInternalActiveTab] = useState('data');
@@ -61,7 +61,7 @@ const IngestDataStep = ({
   const pillContainerRef = useRef(null);
 
   // Plot toggle: combined Highcharts line
-  const [combinedLinePlot, setCombinedLinePlot] = useState(false);
+  const [combinedLinePlot, setCombinedLinePlot] = useState(true);
   const highchartsContainerRef = useRef(null);
   const chartInstanceRef = useRef(null);
 
@@ -180,13 +180,16 @@ const IngestDataStep = ({
   const handleUseDefaultFile = async () => {
     try {
       setUseDefaultFile(true);
-      setSelectedFile('us_city_revenue_data.csv');
-      const response = await fetch('/us_city_revenue_data.csv');
+      setSelectedFile('online_mkt.csv');
+      const response = await fetch('/online_mkt.csv');
       const csvData = await response.text();
-      processCSVData(csvData, 'us_city_revenue_data.csv');
+      // Set correct column mappings for online_mkt.csv
+      setLocationColumn('city');
+      setOutcomeColumn('app_download');
+      setDateColumn('date');
+      processCSVData(csvData, 'online_mkt.csv');
     } catch (error) {
       console.error('Error loading default file:', error);
-      alert('Error loading default file. Please try uploading your own file.');
     }
   };
 
@@ -316,7 +319,7 @@ const IngestDataStep = ({
                 >
                   <span className="option-icon">📊</span>
                   <span className="option-text">Use Sample Data</span>
-                  <span className="option-desc">us_city_revenue_data.csv</span>
+                  <span className="option-desc">online_mkt.csv</span>
                 </button>
               </div>
 
@@ -491,15 +494,30 @@ const IngestDataStep = ({
                       ) : (
                         <div className="bar-chart">
                           {(() => {
+                            if (!fileData || !fileData.rows) return null;
+                            
+                            const headers = fileData.headers || [];
+                            const toKey = (s) => String(s || '').trim().toLowerCase();
+                            const findIdx = (name, fallbacks = []) => {
+                              const targets = [name, ...fallbacks].map(toKey);
+                              for (let t of targets) {
+                                const idx = headers.findIndex(h => toKey(h) === t);
+                                if (idx !== -1) return idx;
+                              }
+                              return -1;
+                            };
+
+                            const locIdx = findIdx(locationColumn, ['city', 'location_id', 'geo', 'market']);
+                            const yIdx = findIdx(outcomeColumn, ['y', 'outcome', 'app_download', 'revenue', 'sales']);
+                            const dateIdx = findIdx(dateColumn, ['date', 'time', 'timestamp', 'day']);
+
+                            if (locIdx === -1 || yIdx === -1 || dateIdx === -1) return null;
+
                             const cityData = {};
-                            const headers = (fileData.headers || []).map(h => String(h).trim().toLowerCase());
-                            const idxCity = headers.indexOf('location') !== -1 ? headers.indexOf('location') : headers.indexOf('city');
-                            const idxY = headers.indexOf('y') !== -1 ? headers.indexOf('y') : headers.indexOf('app_download');
-                            const idxDate = headers.indexOf('date');
                             fileData.rows.forEach(row => {
-                              const city = idxCity !== -1 ? (row[idxCity] || '').trim() : (row[0]?.trim());
-                              const revenue = idxY !== -1 ? (parseInt(row[idxY]) || 0) : (parseInt(row[1]) || 0);
-                              const date = idxDate !== -1 ? row[idxDate] : row[2];
+                              const city = (row[locIdx] || '').trim();
+                              const revenue = parseFloat(row[yIdx]) || 0;
+                              const date = row[dateIdx];
                               if (city && !cityData[city]) {
                                 cityData[city] = [];
                               }
@@ -509,9 +527,6 @@ const IngestDataStep = ({
                             });
 
                             const cities = Object.keys(cityData).sort();
-                            const maxRevenue = Math.max(
-                              ...fileData.rows.map(row => (idxY !== -1 ? (parseInt(row[idxY]) || 0) : (parseInt(row[1]) || 0)))
-                            );
                             const colors = ['#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#ef4444'];
 
                             return (
@@ -519,6 +534,8 @@ const IngestDataStep = ({
                                 {cities.map((city, cityIndex) => {
                                   const cityRows = cityData[city];
                                   const color = colors[cityIndex % colors.length];
+                                  // Use this city's max revenue for scaling instead of global max
+                                  const maxRevenue = Math.max(...cityRows.map(d => d.revenue));
 
                                   return (
                                     <div key={cityIndex} className="city-area-chart">
@@ -554,8 +571,10 @@ const IngestDataStep = ({
                                             return <circle key={index} cx={x} cy={y} r="4" fill={color} stroke="white" strokeWidth="1" />;
                                           })}
 
-                                          {[0, 5000, 10000, 15000, 20000].map((value, i) => {
-                                            const y = 250 - (value / maxRevenue) * 250;
+                                          {/* Y-axis labels scaled to this city's max */}
+                                          {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
+                                            const value = maxRevenue * ratio;
+                                            const y = 250 - ratio * 250;
                                             return (
                                               <text key={i} x="-20" y={y + 3} fontSize="10" fill="#6b7280" textAnchor="end">
                                                 {value.toLocaleString()}

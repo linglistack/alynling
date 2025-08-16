@@ -11,7 +11,7 @@ const loadHighcharts = () => new Promise((resolve, reject) => {
   document.body.appendChild(s);
 });
 
-const AnalyzeExperiment = ({ processedData, config }) => {
+const AnalyzeExperiment = ({ processedData, config, cachedResults, onCacheResults }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [resp, setResp] = useState(null);
@@ -20,6 +20,16 @@ const AnalyzeExperiment = ({ processedData, config }) => {
   const chartPowerRef = useRef(null);
   const chartObs = useRef(null);
   const chartPower = useRef(null);
+
+  // Initialize from cache if available
+  useEffect(() => {
+    if (cachedResults && cachedResults.data) {
+      console.log('[AnalyzeExperiment] Loading from cache:', cachedResults);
+      setResp(cachedResults.data);
+      setError(cachedResults.error || '');
+      setLoading(false);
+    }
+  }, [cachedResults]);
 
   useEffect(() => {
     const run = async () => {
@@ -43,15 +53,102 @@ const AnalyzeExperiment = ({ processedData, config }) => {
         const data = await geoliftAPI.edaPlots(processedData, options);
         console.log('[EDA][response]', data);
         setResp(data);
+        
+        // Cache the results with dependency fingerprint
+        if (onCacheResults) {
+          onCacheResults({
+            data: data,
+            error: '',
+            timestamp: Date.now(),
+            // Store dependency values to detect changes
+            dependencies: {
+              treatmentPeriods: options.treatmentPeriods,
+              effectSize: JSON.stringify(options.effectSize),
+              lookbackWindow: options.lookbackWindow,
+              cpic: options.cpic,
+              alpha: options.alpha,
+              dataLength: Array.isArray(processedData) ? processedData.length : 0,
+              configHash: JSON.stringify(config)
+            }
+          });
+        }
       } catch (e) {
         console.error('[EDA][error]', e);
-        setError(e.message || 'Failed to load analysis');
+        const errorMsg = e.message || 'Failed to load analysis';
+        setError(errorMsg);
+        
+        // Cache the error state with dependency fingerprint
+        if (onCacheResults) {
+          const params = (config && config.msParams) ? config.msParams : {};
+          const effectSize = (params.effectSizeCsv || '')
+            .split(',')
+            .map(s => Number(String(s).trim()))
+            .filter(n => Number.isFinite(n));
+          const options = {
+            treatmentPeriods: Number(params.treatmentPeriods) || 14,
+            effectSize: effectSize.length ? effectSize : undefined,
+            lookbackWindow: Number(params.lookbackWindow) || 1,
+            cpic: Number(params.cpic) || 1,
+            alpha: Number(params.alpha) || 0.1,
+          };
+          
+          onCacheResults({
+            data: null,
+            error: errorMsg,
+            timestamp: Date.now(),
+            dependencies: {
+              treatmentPeriods: options.treatmentPeriods,
+              effectSize: JSON.stringify(options.effectSize),
+              lookbackWindow: options.lookbackWindow,
+              cpic: options.cpic,
+              alpha: options.alpha,
+              dataLength: Array.isArray(processedData) ? processedData.length : 0,
+              configHash: JSON.stringify(config)
+            }
+          });
+        }
       } finally {
         setLoading(false);
       }
     };
-    run();
-  }, [processedData, config]);
+    
+    // Check if we need to invalidate cache due to dependency changes
+    const params = (config && config.msParams) ? config.msParams : {};
+    const effectSize = (params.effectSizeCsv || '')
+      .split(',')
+      .map(s => Number(String(s).trim()))
+      .filter(n => Number.isFinite(n));
+    const currentDeps = {
+      treatmentPeriods: Number(params.treatmentPeriods) || 14,
+      effectSize: JSON.stringify(effectSize.length ? effectSize : undefined),
+      lookbackWindow: Number(params.lookbackWindow) || 1,
+      cpic: Number(params.cpic) || 1,
+      alpha: Number(params.alpha) || 0.1,
+      dataLength: Array.isArray(processedData) ? processedData.length : 0,
+      configHash: JSON.stringify(config)
+    };
+
+    const shouldInvalidateCache = cachedResults && cachedResults.dependencies && (
+      cachedResults.dependencies.treatmentPeriods !== currentDeps.treatmentPeriods ||
+      cachedResults.dependencies.effectSize !== currentDeps.effectSize ||
+      cachedResults.dependencies.lookbackWindow !== currentDeps.lookbackWindow ||
+      cachedResults.dependencies.cpic !== currentDeps.cpic ||
+      cachedResults.dependencies.alpha !== currentDeps.alpha ||
+      cachedResults.dependencies.dataLength !== currentDeps.dataLength ||
+      cachedResults.dependencies.configHash !== currentDeps.configHash
+    );
+
+    // Run API if no cache or if dependencies changed
+    if (!cachedResults || shouldInvalidateCache) {
+      if (shouldInvalidateCache) {
+        console.log('[AnalyzeExperiment] Cache invalidated due to dependency changes:', {
+          cached: cachedResults.dependencies,
+          current: currentDeps
+        });
+      }
+      run();
+    }
+  }, [processedData, config, cachedResults]);
 
   useEffect(() => {
     if (!resp) return;

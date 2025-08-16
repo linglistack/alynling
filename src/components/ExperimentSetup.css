@@ -444,3 +444,73 @@
   color: #111827;
   margin-bottom: 12px;
 }
+
+/* Step navigation styles */
+.step-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-bottom: 20px;
+  padding: 0 8px;
+}
+
+.nav-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8f9fa;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nav-button:hover {
+  background: #f1f3f4;
+  border-color: #d1d5db;
+  color: #111827;
+}
+
+.nav-button:active {
+  transform: translateY(1px);
+}
+
+.prev-button {
+  background: #fff;
+}
+
+.prev-button:hover {
+  background: #f8f9fa;
+}
+
+/* Clickable stepper styles */
+.step {
+  transition: all 0.2s ease;
+}
+
+.step:hover {
+  transform: translateY(-1px);
+}
+
+.step.current .step-circle {
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+.step.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.step.disabled .step-circle {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  color: #9ca3af;
+}
+
+.step.disabled .step-label {
+  color: #9ca3af;
+}
