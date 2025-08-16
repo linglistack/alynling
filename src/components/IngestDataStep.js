@@ -228,7 +228,17 @@ const IngestDataStep = ({
   useEffect(() => {
     const renderChart = async () => {
       if (activeTab !== 'plot') return;
-      if (!combinedLinePlot || !fileData || !highchartsContainerRef.current) return;
+      
+      // If combined chart is turned off, destroy existing chart and return
+      if (!combinedLinePlot) {
+        if (chartInstanceRef.current) {
+          chartInstanceRef.current.destroy();
+          chartInstanceRef.current = null;
+        }
+        return;
+      }
+      
+      if (!fileData || !highchartsContainerRef.current) return;
       const Highcharts = await loadHighcharts();
 
       // Build series by city

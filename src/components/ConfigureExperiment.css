@@ -217,6 +217,20 @@
     margin-bottom: 10px;
 }
 
+.adv-section {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.adv-section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 12px;
+    margin-top: 0;
+}
+
 .advanced-panel input[type="range"] {
     width: 100%;
 }
@@ -503,4 +517,243 @@
     top: 0;
     background: #f9fafb;
     z-index: 1;
+}
+
+/* Progress bar styles */
+.results-loading {
+    padding: 24px;
+    text-align: center;
+    color: #6b7280;
+}
+
+.loading-text {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: #374151;
+}
+
+.progress-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 16px 0;
+    justify-content: center;
+}
+
+.progress-bar {
+    width: 200px;
+    height: 8px;
+    background-color: #e5e7eb;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    position: relative;
+}
+
+.progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background-image: linear-gradient(-45deg,
+            rgba(255, 255, 255, 0.2) 25%,
+            transparent 25%,
+            transparent 50%,
+            rgba(255, 255, 255, 0.2) 50%,
+            rgba(255, 255, 255, 0.2) 75%,
+            transparent 75%,
+            transparent);
+    background-size: 20px 20px;
+    animation: progress-stripes 1s linear infinite;
+}
+
+@keyframes progress-stripes {
+    0% {
+        background-position: 0 0;
+    }
+
+    100% {
+        background-position: 20px 0;
+    }
+}
+
+.progress-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: #667eea;
+    min-width: 40px;
+}
+
+.loading-subtitle {
+    font-size: 13px;
+    color: #9ca3af;
+    margin-top: 12px;
+    font-style: italic;
+}
+
+/* Ant Design table customization */
+.antd-table-wrapper {
+    margin-top: 16px;
+    height: calc(100vh - 160px);
+    /* Dynamic height that adjusts with left panel content */
+    overflow: auto;
+    position: relative;
+}
+
+.antd-table-wrapper .ant-table {
+    font-size: 13px;
+}
+
+.antd-table-wrapper .ant-table-container {
+    height: 100%;
+}
+
+.antd-table-wrapper .ant-table-thead>tr>th {
+    background: #f9fafb;
+    border-bottom: 2px solid #e5e7eb;
+    font-weight: 600;
+    color: #374151;
+    padding: 12px 8px;
+}
+
+.antd-table-wrapper .ant-table-tbody>tr>td {
+    padding: 8px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.antd-table-wrapper .ant-table-tbody>tr:hover>td {
+    background: #f8fafc;
+}
+
+.antd-table-wrapper .ant-pagination {
+    margin-top: 16px;
+    text-align: center;
+}
+
+.antd-table-wrapper .ant-pagination .ant-pagination-item-active {
+    border-color: #667eea;
+    background: #667eea;
+}
+
+.antd-table-wrapper .ant-pagination .ant-pagination-item-active a {
+    color: white;
+}
+
+.antd-table-wrapper .ant-pagination .ant-pagination-item:hover {
+    border-color: #667eea;
+}
+
+.antd-table-wrapper .ant-pagination .ant-pagination-item:hover a {
+    color: #667eea;
+}
+
+.antd-table-wrapper .ant-select-selector {
+    border-color: #d1d5db;
+}
+
+.antd-table-wrapper .ant-select:not(.ant-select-disabled):hover .ant-select-selector {
+    border-color: #667eea;
+}
+
+/* Remove old pagination styles since we're using vertical scroll */
+.antd-table-wrapper .ant-pagination {
+    display: none;
+}
+
+/* Custom filter dropdown styles */
+.antd-table-wrapper .ant-table-filter-dropdown {
+    background: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: 6px;
+}
+
+/* Sort icon styles */
+.antd-table-wrapper .ant-table-column-sorter {
+    color: #bfbfbf;
+}
+
+.antd-table-wrapper .ant-table-column-sorter.ant-table-column-sorter-up.active,
+.antd-table-wrapper .ant-table-column-sorter.ant-table-column-sorter-down.active {
+    color: #667eea;
+}
+
+/* Filter icon styles */
+.antd-table-wrapper .ant-table-filter-trigger {
+    color: #bfbfbf;
+}
+
+.antd-table-wrapper .ant-table-filter-trigger.active {
+    color: #667eea;
+}
+
+/* Improve table cell padding for better readability */
+.antd-table-wrapper .ant-table-thead>tr>th {
+    padding: 12px 16px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.antd-table-wrapper .ant-table-tbody>tr>td {
+    padding: 10px 16px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+/* Ensure table takes full width and columns are properly sized */
+.antd-table-wrapper .ant-table {
+    width: 100%;
+    table-layout: auto;
+}
+
+.antd-table-wrapper .ant-table-container {
+    width: 100%;
+}
+
+/* React resizable column handles */
+.react-resizable {
+    position: relative;
+    background-clip: padding-box;
+}
+
+.react-resizable-handle {
+    position: absolute;
+    right: -5px;
+    bottom: 0;
+    top: 0;
+    width: 10px;
+    cursor: col-resize;
+    z-index: 1;
+}
+
+.react-resizable-handle:hover {
+    border-right: 2px solid #667eea;
+}
+
+/* Import react-resizable CSS */
+@import '~react-resizable/css/styles.css';
+
+/* Override react-resizable styles to match our theme */
+.react-resizable-handle-se {
+    display: none;
+    /* Hide bottom-right handle */
+}
+
+.antd-table-wrapper .ant-table-thead>tr>th.react-resizable {
+    border-right: 1px solid #f0f0f0;
+}
+
+.antd-table-wrapper .ant-table-thead>tr>th.react-resizable:hover {
+    border-right: 1px solid #667eea;
 }

@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import TooltipInfo from './TooltipInfo';
+import tooltips from '../config/geoliftTooltips.json';
 
 const defaultAdvanced = {
   testType: 'increase', // 'increase' | 'decrease'
@@ -10,7 +12,13 @@ const defaultAdvanced = {
   marketsRequired: '',
   excludeFromTest: '',
   excludeCompletely: '',
-  numTestGeos: 2
+  numTestGeos: 2,
+  // Market Selection Parameters
+  treatmentPeriods: '28',
+  effectSizeCsv: '0,0.05,0.1,0.15,0.2,0.25',
+  lookbackWindow: '1',
+  cpic: '1',
+  alpha: '0.1'
 };
 
 const CellAdvancedConfig = ({ value, onChange }) => {
@@ -20,6 +28,11 @@ const CellAdvancedConfig = ({ value, onChange }) => {
   const update = (field, val) => {
     onChange && onChange({ ...v, [field]: val });
   };
+
+  const getTip = (id) => ({
+    title: (tooltips[id] && tooltips[id].question) || '',
+    content: (tooltips[id] && tooltips[id].example) || ''
+  });
 
   return (
     <div className="advanced">
@@ -63,35 +76,52 @@ const CellAdvancedConfig = ({ value, onChange }) => {
               <input type="number" className="config-input" value={v.channelROI} onChange={(e) => update('channelROI', e.target.value)} />
             </div>
             <div className="adv-field">
-              <label className="config-label">Experiment length (days)</label>
-              <input type="number" className="config-input" value={v.experimentLength} onChange={(e) => update('experimentLength', e.target.value)} />
-            </div>
-            <div className="adv-field">
-              <label className="config-label">Cooldown period (days)</label>
-              <input type="number" className="config-input" value={v.cooldownPeriod} onChange={(e) => update('cooldownPeriod', e.target.value)} />
-            </div>
-            <div className="adv-field">
               <label className="config-label">Approximate $ amount for test</label>
               <input type="number" className="config-input" value={v.testAmount} onChange={(e) => update('testAmount', e.target.value)} />
             </div>
           </div>
 
-          <div className="adv-field">
-            <label className="config-label">Markets required for test arm (optional)</label>
-            <input type="text" className="config-input" placeholder="Comma-separated" value={v.marketsRequired} onChange={(e) => update('marketsRequired', e.target.value)} />
-          </div>
 
-          <div className="adv-field">
-            <label className="config-label">Exclude from test arm (optional)</label>
-            <input type="text" className="config-input" placeholder="Comma-separated" value={v.excludeFromTest} onChange={(e) => update('excludeFromTest', e.target.value)} />
-          </div>
 
-          <div className="adv-field">
-            <label className="config-label">Exclude completely (optional)</label>
-            <input type="text" className="config-input" placeholder="Comma-separated" value={v.excludeCompletely} onChange={(e) => update('excludeCompletely', e.target.value)} />
-          </div>
-
-          <div className="adv-field">
+          {/* Market Selection Parameters */}
+            <div className="adv-grid">
+              <div className="adv-field">
+                <label className="config-label">
+                  Experiment length (days)
+                  <TooltipInfo {...getTip('treatment_periods')} />
+                </label>
+                <input type="number" min="1" className="config-input" value={v.treatmentPeriods} onChange={(e) => update('treatmentPeriods', e.target.value)} />
+              </div>
+              <div className="adv-field">
+                <label className="config-label">
+                  Lookback window
+                  <TooltipInfo {...getTip('lookback_window')} />
+                </label>
+                <input type="number" min="1" className="config-input" value={v.lookbackWindow} onChange={(e) => update('lookbackWindow', e.target.value)} />
+              </div>
+              <div className="adv-field">
+                <label className="config-label">
+                  Channel CPIC
+                  <TooltipInfo {...getTip('cpic')} />
+                </label>
+                <input type="number" min="0" className="config-input" value={v.cpic} onChange={(e) => update('cpic', e.target.value)} />
+              </div>
+              <div className="adv-field">
+                <label className="config-label">
+                  Alpha
+                  <TooltipInfo {...getTip('alpha')} />
+                </label>
+                <input type="number" step="0.01" min="0.01" max="0.5" className="config-input" value={v.alpha} onChange={(e) => update('alpha', e.target.value)} />
+              </div>
+            </div>
+            <div className="adv-field">
+              <label className="config-label">
+                Effect size list
+                <TooltipInfo {...getTip('effect_size')} />
+              </label>
+              <input type="text" className="config-input" value={v.effectSizeCsv} onChange={(e) => update('effectSizeCsv', e.target.value)} />
+            </div>
+            <div className="adv-field">
             <label className="config-label">Number of test geos to consider: <strong>{v.numTestGeos}</strong></label>
             <input type="range" min="2" max="20" step="1" value={v.numTestGeos} onChange={(e) => update('numTestGeos', Number(e.target.value))} />
           </div>

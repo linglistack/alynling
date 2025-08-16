@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Table } from 'antd';
+import { Resizable } from 'react-resizable';
 import './ConfigureExperiment.css';
 import CellAdvancedConfig from './CellAdvancedConfig';
 import { geoliftAPI } from '../utils/geoliftAPI';
@@ -19,24 +21,23 @@ const getTip = (id) => ({
   content: (tooltips[id] && tooltips[id].example) || ''
 });
 
-const ConfigureExperiment = ({ processedData, onProceed, cachedResults, onCacheResults, isPreCallingMarketSelection }) => {
+const ConfigureExperiment = ({ processedData, onProceed, cachedResults, onCacheResults, isPreCallingMarketSelection, marketSelectionProgress }) => {
   const [experimentName, setExperimentName] = useState('');
   const [numExperiments, setNumExperiments] = useState(1);
   const [cells, setCells] = useState([makeEmptyCell(0)]);
 
-  // Market selection params (left panel, one-line inputs)
-  const [msParams, setMsParams] = useState({
-    treatmentPeriods: '28',
-    effectSizeCsv: '0,0.05,0.1,0.15,0.2,0.25',
-    lookbackWindow: '1',
-    cpic: '1',
-    alpha: '0.1'
-  });
+
 
   // Right panel state
   const [msLoading, setMsLoading] = useState(false);
   const [msError, setMsError] = useState('');
   const [marketCombos, setMarketCombos] = useState([]);
+  
+  // Column width state for resizing
+  const [columnWidths, setColumnWidths] = useState({});
+  
+  // Dynamic table height based on left panel
+  const [tableHeight, setTableHeight] = useState('calc(100vh - 180px)');
 
   // Initialize from cache if available
   useEffect(() => {
@@ -55,6 +56,45 @@ const ConfigureExperiment = ({ processedData, onProceed, cachedResults, onCacheR
       setMsLoading(false);
     }
   }, [isPreCallingMarketSelection, cachedResults]);
+
+  // Dynamic height adjustment based on left panel content
+  useEffect(() => {
+    const adjustTableHeight = () => {
+      const leftPanel = document.querySelector('.configure-left');
+      const stepper = document.querySelector('.stepper-header');
+      
+      if (leftPanel && stepper) {
+        const leftPanelHeight = leftPanel.offsetHeight;
+        const stepperHeight = stepper.offsetHeight;
+        const padding = 40; // Account for margins and padding
+        
+        const availableHeight = window.innerHeight - stepperHeight - padding;
+        const calculatedHeight = Math.max(availableHeight, leftPanelHeight);
+        
+        setTableHeight(`${calculatedHeight - 60}px`); // 60px for table header and margins
+      }
+    };
+
+    // Adjust on mount and window resize
+    adjustTableHeight();
+    window.addEventListener('resize', adjustTableHeight);
+    
+    // Use MutationObserver to watch for left panel changes (advanced config collapse/expand)
+    const leftPanel = document.querySelector('.configure-left');
+    if (leftPanel) {
+      const observer = new MutationObserver(adjustTableHeight);
+      observer.observe(leftPanel, { childList: true, subtree: true, attributes: true });
+      
+      return () => {
+        window.removeEventListener('resize', adjustTableHeight);
+        observer.disconnect();
+      };
+    }
+
+    return () => {
+      window.removeEventListener('resize', adjustTableHeight);
+    };
+  }, []);
 
   useEffect(() => {
     setCells((prev) => {
@@ -76,31 +116,37 @@ const ConfigureExperiment = ({ processedData, onProceed, cachedResults, onCacheR
 
   const canProceed = experimentName.trim().length > 0;
 
-  // Prefer explicit params from left panel; fall back to first cell data if present
+  // Use parameters from the first cell's advanced config (since all cells will have same market selection params)
   const treatmentPeriods = useMemo(() => {
-    const n = Number(msParams.treatmentPeriods);
-    return Number.isFinite(n) && n > 0 ? n : 14;
-  }, [msParams]);
+    const firstCell = cells[0];
+    const n = Number(firstCell?.advanced?.treatmentPeriods);
+    return Number.isFinite(n) && n > 0 ? n : 28;
+  }, [cells]);
 
   const cpic = useMemo(() => {
-    const n = Number(msParams.cpic);
+    const firstCell = cells[0];
+    const n = Number(firstCell?.advanced?.cpic);
     return Number.isFinite(n) && n > 0 ? n : 1;
-  }, [msParams]);
+  }, [cells]);
 
   const lookbackWindow = useMemo(() => {
-    const n = Number(msParams.lookbackWindow);
+    const firstCell = cells[0];
+    const n = Number(firstCell?.advanced?.lookbackWindow);
     return Number.isFinite(n) && n > 0 ? n : 1;
-  }, [msParams]);
+  }, [cells]);
 
   const alpha = useMemo(() => {
-    const n = Number(msParams.alpha);
+    const firstCell = cells[0];
+    const n = Number(firstCell?.advanced?.alpha);
     return Number.isFinite(n) && n > 0 ? n : 0.1;
-  }, [msParams]);
+  }, [cells]);
 
   const effectSize = useMemo(() => {
-    const parts = (msParams.effectSizeCsv || '').split(',').map(s => Number(String(s).trim())).filter(n => Number.isFinite(n));
+    const firstCell = cells[0];
+    const csvString = firstCell?.advanced?.effectSizeCsv || '0,0.05,0.1,0.15,0.2,0.25';
+    const parts = csvString.split(',').map(s => Number(String(s).trim())).filter(n => Number.isFinite(n));
     return parts.length > 0 ? parts : [0, 0.05, 0.1, 0.15, 0.2, 0.25];
-  }, [msParams]);
+  }, [cells]);
 
   const runMarketSelection = async () => {
     if (!processedData) return;
@@ -208,53 +254,12 @@ const ConfigureExperiment = ({ processedData, onProceed, cachedResults, onCacheR
       runMarketSelection();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [processedData, treatmentPeriods, cpic, lookbackWindow, alpha, msParams.effectSizeCsv, cachedResults, isPreCallingMarketSelection]);
+  }, [processedData, treatmentPeriods, cpic, lookbackWindow, alpha, effectSize, cachedResults, isPreCallingMarketSelection]);
 
   return (
     <div className="configure-split">
       <div className="configure-left">
         <div className="configure-experiment">
-          <div className="ms-card">
-            <div className="ms-title">Market Selection Parameters</div>
-            <div className="ms-form">
-              <div className="ms-field">
-                <label>Experiment length (days)
-                  <TooltipInfo {...getTip('treatment_periods')} />
-                </label>
-                <input type="number" min="1" value={msParams.treatmentPeriods} onChange={(e) => setMsParams({ ...msParams, treatmentPeriods: e.target.value })} />
-              </div>
-              <div className="ms-field">
-                <label>Effect size list
-                  <TooltipInfo {...getTip('effect_size')} />
-                </label>
-                <input type="text" value={msParams.effectSizeCsv} onChange={(e) => setMsParams({ ...msParams, effectSizeCsv: e.target.value })} />
-              </div>
-              <div className="ms-field">
-                <label>Lookback window
-                  <TooltipInfo {...getTip('lookback_window')} />
-                </label>
-                <input type="number" min="1" value={msParams.lookbackWindow} onChange={(e) => setMsParams({ ...msParams, lookbackWindow: e.target.value })} />
-              </div>
-              <div className="ms-field">
-                <label>CPIC
-                  <TooltipInfo {...getTip('cpic')} />
-                </label>
-                <input type="number" min="0" value={msParams.cpic} onChange={(e) => setMsParams({ ...msParams, cpic: e.target.value })} />
-              </div>
-              <div className="ms-field">
-                <label>Alpha
-                  <TooltipInfo {...getTip('alpha')} />
-                </label>
-                <input type="number" step="0.01" min="0.01" max="0.5" value={msParams.alpha} onChange={(e) => setMsParams({ ...msParams, alpha: e.target.value })} />
-              </div>
-              <div className="ms-actions">
-                <button type="button" className="secondary-btn" onClick={runMarketSelection} disabled={msLoading}>
-                  {msLoading ? 'Running…' : 'Run Selection'}
-                </button>
-              </div>
-            </div>
-          </div>
-
           <div className="config-card">
             <div className="config-row single-col">
               <div className="config-field">
@@ -299,17 +304,6 @@ const ConfigureExperiment = ({ processedData, onProceed, cachedResults, onCacheR
                     onChange={(e) => updateCell(idx, 'channelName', e.target.value)}
                   />
                 </div>
-                <div className="cell-field">
-                  <label className="config-label">Channel CPIC</label>
-                  <input
-                    type="number"
-                    min="0"
-                    className="config-input"
-                    placeholder="Enter CPIC"
-                    value={cell.cpic}
-                    onChange={(e) => updateCell(idx, 'cpic', e.target.value)}
-                  />
-                </div>
               </div>
 
               <CellAdvancedConfig
@@ -324,7 +318,18 @@ const ConfigureExperiment = ({ processedData, onProceed, cachedResults, onCacheR
               type="button"
               className={`primary-btn ${canProceed ? '' : 'disabled'}`}
               disabled={!canProceed}
-              onClick={() => onProceed && onProceed({ experimentName, numExperiments, cells, msParams })}
+              onClick={() => onProceed && onProceed({ 
+                experimentName, 
+                numExperiments, 
+                cells, 
+                msParams: {
+                  treatmentPeriods: String(treatmentPeriods),
+                  effectSizeCsv: effectSize.join(','),
+                  lookbackWindow: String(lookbackWindow),
+                  cpic: String(cpic),
+                  alpha: String(alpha)
+                }
+              })}
             >
               Next
             </button>
@@ -336,7 +341,27 @@ const ConfigureExperiment = ({ processedData, onProceed, cachedResults, onCacheR
         <div className="results-card">
           <div className="results-title">Candidate Test Markets</div>
           {msLoading ? (
-            <div className="results-loading">Computing market selection…</div>
+            <div className="results-loading">
+              <div className="loading-text">
+                {isPreCallingMarketSelection ? 'Loading market selection…' : 'Computing market selection…'}
+              </div>
+              {isPreCallingMarketSelection && (
+                <div className="progress-container">
+                  <div className="progress-bar">
+                    <div 
+                      className="progress-fill" 
+                      style={{ width: `${Math.min(marketSelectionProgress, 100)}%` }}
+                    ></div>
+                  </div>
+                  <div className="progress-text">
+                    {Math.round(marketSelectionProgress)}%
+                  </div>
+                </div>
+              )}
+              <div className="loading-subtitle">
+                This may take up to 1 minute for large datasets
+              </div>
+            </div>
           ) : msError ? (
             <div className="results-error">{msError}</div>
           ) : marketCombos && marketCombos.length > 0 ? (
@@ -344,48 +369,232 @@ const ConfigureExperiment = ({ processedData, onProceed, cachedResults, onCacheR
               const first = marketCombos[0] || {};
               const allKeys = Object.keys(first);
 
-              const humanize = (k) => k
-                .replace(/_/g, ' ')
-                .replace(/\b\w/g, c => c.toUpperCase());
+              // Define which columns to show (prioritize rank over id)
+              const allowedColumns = [
+                'rank', 'ranking', 'location', 'locations', 'markets', 'test_markets',
+                'effect_size', 'effectsize', 'effect',
+                'average_att', 'att', 'avg_att', 'average_effect',
+                'investment', 'budget', 'cost'
+              ];
+
+              // Create a mapping of API keys to their categories, then filter in priority order
+              const keyMapping = {};
+              allKeys.forEach(key => {
+                const lowerKey = key.toLowerCase();
+                for (const allowed of allowedColumns) {
+                  const lowerAllowed = allowed.toLowerCase();
+                  if (lowerKey.includes(lowerAllowed) || lowerAllowed.includes(lowerKey)) {
+                    if (!keyMapping[allowed]) {
+                      keyMapping[allowed] = key; // First match wins
+                    }
+                    break; // Stop at first match to avoid duplicates
+                  }
+                }
+              });
+
+              // Get filtered keys in priority order
+              const filteredKeys = allowedColumns
+                .filter(allowed => keyMapping[allowed])
+                .map(allowed => keyMapping[allowed]);
+
+              // Prepare data with unique keys first (needed for width calculation)
+              const dataSource = marketCombos.map((row, index) => ({
+                ...row,
+                key: index
+              }));
+
+              const getColumnTitle = (k) => {
+                // Custom labels for specific columns
+                const labelMap = {
+                  'rank': 'Rank',
+                  'ranking': 'Rank',
+                  'location': 'Location',
+                  'locations': 'Location', 
+                  'markets': 'Location',
+                  'test_markets': 'Location',
+                  'effect_size': 'Effect Size',
+                  'effectsize': 'Effect Size',
+                  'effect': 'Effect Size',
+                  'average_att': 'Average ATT',
+                  'att': 'Average ATT',
+                  'avg_att': 'Average ATT',
+                  'average_effect': 'Average ATT',
+                  'investment': 'Investment',
+                  'budget': 'Investment',
+                  'cost': 'Investment'
+                };
+                
+                const lowerKey = k.toLowerCase();
+                for (const [pattern, label] of Object.entries(labelMap)) {
+                  if (lowerKey.includes(pattern) || pattern.includes(lowerKey)) {
+                    return label;
+                  }
+                }
+                
+                return k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+              };
 
               const formatValue = (v, key) => {
                 if (Array.isArray(v)) return v.filter(Boolean).join(', ');
                 if (v == null) return '';
                 if (typeof v === 'object') return JSON.stringify(v);
                 if (typeof v === 'number') {
-                  if (/revenue|budget|amount|lift|value/i.test(key)) {
+                  if (/revenue|budget|amount|lift|value|investment|cost/i.test(key)) {
                     return v.toLocaleString();
+                  }
+                  if (/effect|att/i.test(key)) {
+                    return v.toFixed(3);
                   }
                   return v.toLocaleString();
                 }
                 return String(v);
               };
 
-              const headers = ['#', ...allKeys];
+              // Resizable title component
+              const ResizableTitle = (props) => {
+                const { onResize, width, ...restProps } = props;
+
+                if (!width) {
+                  return <th {...restProps} />;
+                }
+
+                return (
+                  <Resizable
+                    width={width}
+                    height={0}
+                    handle={
+                      <span
+                        className="react-resizable-handle"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                        }}
+                      />
+                    }
+                    onResize={onResize}
+                    draggableOpts={{ enableUserSelectHack: false }}
+                  >
+                    <th {...restProps} />
+                  </Resizable>
+                );
+              };
+
+              // Helper function to calculate column width based on content + header + icons
+              const calculateColumnWidth = (key, title, dataSource) => {
+                // Calculate max content width
+                const maxContentLength = Math.max(
+                  ...dataSource.map(row => String(formatValue(row[key], key) || '').length),
+                  title.length
+                );
+                
+                // Base width calculation: 8px per character + padding + icons
+                const baseWidth = maxContentLength * 8 + 32; // 32px for padding
+                const iconSpace = 40; // Extra space for sort + filter icons
+                const minWidth = 80; // Minimum column width
+                const maxWidth = 300; // Maximum column width to prevent too wide columns
+                
+                return Math.min(Math.max(baseWidth + iconSpace, minWidth), maxWidth);
+              };
+
+              // Handle column resize
+              const handleResize = (index) => (e, { size }) => {
+                const newColumns = [...columns];
+                newColumns[index] = {
+                  ...newColumns[index],
+                  width: size.width,
+                };
+                setColumnWidths(prev => ({
+                  ...prev,
+                  [filteredKeys[index]]: size.width
+                }));
+              };
+
+              // Create Ant Design table columns
+              const columns = filteredKeys.map((key, index) => {
+                const title = getColumnTitle(key);
+                const isNumeric = /number|rank|effect|att|investment|budget|cost/i.test(key);
+                const isLocation = /location|market/i.test(key);
+                const defaultWidth = calculateColumnWidth(key, title, dataSource);
+                const width = columnWidths[key] || defaultWidth;
+                
+                return {
+                  title: title,
+                  dataIndex: key,
+                  key: key,
+                  width: width,
+                  align: isNumeric ? 'right' : 'left',
+                  onHeaderCell: (column) => ({
+                    width: column.width,
+                    onResize: handleResize(index),
+                  }),
+                  sorter: (a, b) => {
+                    const aVal = a[key];
+                    const bVal = b[key];
+                    
+                    // Handle numeric sorting
+                    if (typeof aVal === 'number' && typeof bVal === 'number') {
+                      return aVal - bVal;
+                    }
+                    
+                    // Handle string sorting
+                    const aStr = String(aVal || '').toLowerCase();
+                    const bStr = String(bVal || '').toLowerCase();
+                    return aStr.localeCompare(bStr);
+                  },
+                  filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
+                    <div style={{ padding: 8 }}>
+                      <input
+                        placeholder={`Search ${title}`}
+                        value={selectedKeys[0]}
+                        onChange={e => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+                        onPressEnter={() => confirm()}
+                        style={{ width: 188, marginBottom: 8, display: 'block', padding: '4px 8px', border: '1px solid #d9d9d9', borderRadius: '4px' }}
+                      />
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <button 
+                          type="button" 
+                          onClick={() => confirm()}
+                          style={{ marginRight: 8, padding: '4px 8px', background: '#1890ff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                        >
+                          Search
+                        </button>
+                        <button 
+                          type="button" 
+                          onClick={() => { clearFilters(); confirm(); }}
+                          style={{ padding: '4px 8px', background: '#f5f5f5', border: '1px solid #d9d9d9', borderRadius: '4px', cursor: 'pointer' }}
+                        >
+                          Reset
+                        </button>
+                      </div>
+                    </div>
+                  ),
+                  onFilter: (value, record) => {
+                    const recordValue = String(record[key] || '').toLowerCase();
+                    return recordValue.includes(String(value).toLowerCase());
+                  },
+                  render: (value) => formatValue(value, key)
+                };
+              });
 
               return (
-                <div className="combo-table-wrapper">
-                  <table className="combo-table">
-                    <thead>
-                      <tr>
-                        {headers.map((h, idx) => (
-                          <th key={idx}>{idx === 0 ? '#' : humanize(h)}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {marketCombos.map((row, i) => (
-                        <tr key={i}>
-                          <td>{i + 1}</td>
-                          {allKeys.map((k, j) => (
-                            <td key={j} className={/location|market/i.test(k) ? 'loc-cell' : ''}>
-                              {formatValue(row[k], k)}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="antd-table-wrapper" id="candidate-markets-table">
+                  <Table
+                    columns={columns}
+                    dataSource={dataSource}
+                    pagination={false}
+                    scroll={{ 
+                      y: tableHeight, // Dynamic height that matches left panel
+                      x: 'max-content' // Auto width based on content
+                    }}
+                    size="small"
+                    bordered
+                    showSorterTooltip={false}
+                    tableLayout="auto" // Auto-size columns based on content
+                    components={{
+                      header: {
+                        cell: ResizableTitle,
+                      },
+                    }}
+                  />
                 </div>
               );
             })()

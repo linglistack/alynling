@@ -34,6 +34,7 @@ const ExperimentSetup = ({ onBack }) => {
   
   // Track pre-call loading state to prevent duplicate API calls
   const [isPreCallingMarketSelection, setIsPreCallingMarketSelection] = useState(false);
+  const [marketSelectionProgress, setMarketSelectionProgress] = useState(0);
 
   const canProceed = !!fileData;
 
@@ -68,9 +69,20 @@ const ExperimentSetup = ({ onBack }) => {
         return;
       }
       
+      let progressInterval; // Declare at function scope
+      
       try {
         setIsPreCallingMarketSelection(true);
+        setMarketSelectionProgress(0);
         console.log('[CreateExperiment] Pre-calling market selection after file upload...');
+        
+        // Simulate progress for better UX (cap at 99% until API completes)
+        progressInterval = setInterval(() => {
+          setMarketSelectionProgress(prev => {
+            if (prev >= 99) return 99; // Cap at 99% until API completes
+            return Math.min(prev + Math.random() * 6, 99); // Random increments but never exceed 99%
+          });
+        }, 2000); // Update every 2 seconds
         
         // Process data locally first
         const headers = (fileData.headers || []).map(h => String(h).trim().toLowerCase());
@@ -136,7 +148,12 @@ const ExperimentSetup = ({ onBack }) => {
         
         const resp = await geoliftAPI.marketSelection(processedRows, defaultParams);
         
+        clearInterval(progressInterval);
+        
         if (resp.success) {
+          // Set to 100% only when API truly completes successfully
+          setMarketSelectionProgress(100);
+          
           // Cache the default market selection results
           setCachedMarketSelection({
             marketCombos: resp.market_selection || [],
@@ -156,9 +173,12 @@ const ExperimentSetup = ({ onBack }) => {
           console.log('[CreateExperiment] Market selection pre-call failed:', resp.error);
         }
       } catch (e) {
+        clearInterval(progressInterval);
         console.log('[CreateExperiment] Market selection pre-call error (non-blocking):', e.message);
       } finally {
         setIsPreCallingMarketSelection(false);
+        // Reset progress after a delay
+        setTimeout(() => setMarketSelectionProgress(0), 2000);
       }
     };
 
@@ -295,7 +315,7 @@ const ExperimentSetup = ({ onBack }) => {
             <div className="step-label">Analyze</div>
           </div>
         </div>
-      </div>
+          </div>
 
       <div className="setup-body">
         {currentStep === 1 && (
@@ -353,13 +373,14 @@ const ExperimentSetup = ({ onBack }) => {
                 <ArrowLeft size={16} />
                 Previous: Ingest Data
               </button>
-            </div>
+                </div>
             <ConfigureExperiment 
               processedData={processedData} 
               onProceed={(payload) => { setConfigSummary(payload); setCurrentStep(3); }}
               cachedResults={cachedMarketSelection}
               onCacheResults={setCachedMarketSelection}
               isPreCallingMarketSelection={isPreCallingMarketSelection}
+              marketSelectionProgress={marketSelectionProgress}
             />
           </>
         )}
@@ -373,8 +394,8 @@ const ExperimentSetup = ({ onBack }) => {
               >
                 <ArrowLeft size={16} />
                 Previous: Configure
-              </button>
-            </div>
+            </button>
+          </div>
             <AnalyzeExperiment 
               processedData={processedData} 
               config={configSummary}
