@@ -180,14 +180,14 @@ const IngestDataStep = ({
   const handleUseDefaultFile = async () => {
     try {
       setUseDefaultFile(true);
-      setSelectedFile('online_mkt.csv');
-      const response = await fetch('/online_mkt.csv');
+      setSelectedFile('online_mkt_us_states.csv');
+      const response = await fetch('/online_mkt_us_states.csv');
       const csvData = await response.text();
-      // Set correct column mappings for online_mkt.csv
+      // Set correct column mappings for online_mkt_us_states.csv
       setLocationColumn('city');
       setOutcomeColumn('app_download');
       setDateColumn('date');
-      processCSVData(csvData, 'online_mkt.csv');
+      processCSVData(csvData, 'online_mkt_us_states.csv');
     } catch (error) {
       console.error('Error loading default file:', error);
     }
@@ -329,7 +329,7 @@ const IngestDataStep = ({
                 >
                   <span className="option-icon">📊</span>
                   <span className="option-text">Use Sample Data</span>
-                  <span className="option-desc">online_mkt.csv</span>
+                  <span className="option-desc">online_mkt_us_states.csv</span>
                 </button>
               </div>
 
@@ -371,39 +371,84 @@ const IngestDataStep = ({
           <div className="form-section">
             <label className="form-label">Date column</label>
             <div className="input-with-dropdown">
-              <input
-                type="text"
-                value={dateColumn}
-                onChange={(e) => setDateColumn(e.target.value)}
-                className="text-input"
-              />
-              <div className="dropdown-arrow">▼</div>
+              {fileData?.headers ? (
+                <select
+                  value={dateColumn}
+                  onChange={(e) => setDateColumn(e.target.value)}
+                  className="text-input"
+                >
+                  <option value="">Select date column...</option>
+                  {fileData.headers.map((header, index) => (
+                    <option key={index} value={header}>
+                      {header}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={dateColumn}
+                  onChange={(e) => setDateColumn(e.target.value)}
+                  className="text-input"
+                  placeholder="Enter date column name"
+                />
+              )}
             </div>
           </div>
 
           <div className="form-section">
             <label className="form-label">Outcome variable column</label>
             <div className="input-with-dropdown">
-              <input
-                type="text"
-                value={outcomeColumn}
-                onChange={(e) => setOutcomeColumn(e.target.value)}
-                className="text-input"
-              />
-              <div className="dropdown-arrow">▼</div>
+              {fileData?.headers ? (
+                <select
+                  value={outcomeColumn}
+                  onChange={(e) => setOutcomeColumn(e.target.value)}
+                  className="text-input"
+                >
+                  <option value="">Select outcome column...</option>
+                  {fileData.headers.map((header, index) => (
+                    <option key={index} value={header}>
+                      {header}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={outcomeColumn}
+                  onChange={(e) => setOutcomeColumn(e.target.value)}
+                  className="text-input"
+                  placeholder="Enter outcome column name"
+                />
+              )}
             </div>
           </div>
 
           <div className="form-section">
             <label className="form-label">Location ID column</label>
             <div className="input-with-dropdown">
-              <input
-                type="text"
-                value={locationColumn}
-                onChange={(e) => setLocationColumn(e.target.value)}
-                className="text-input"
-              />
-              <div className="dropdown-arrow">▼</div>
+              {fileData?.headers ? (
+                <select
+                  value={locationColumn}
+                  onChange={(e) => setLocationColumn(e.target.value)}
+                  className="text-input"
+                >
+                  <option value="">Select location column...</option>
+                  {fileData.headers.map((header, index) => (
+                    <option key={index} value={header}>
+                      {header}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={locationColumn}
+                  onChange={(e) => setLocationColumn(e.target.value)}
+                  className="text-input"
+                  placeholder="Enter location column name"
+                />
+              )}
             </div>
           </div>
 
@@ -680,7 +725,7 @@ const IngestDataStep = ({
                 <label className="switch-label">
                   <input type="checkbox" checked={checkProblems} onChange={(e) => setCheckProblems(e.target.checked)} />
                   <span className="switch"></span>
-                  <span className="switch-text">Check Problems <Info size={14} className="info-icon" /></span>
+                  <span className="switch-text">Seasonality<Info size={14} className="info-icon" /></span>
                 </label>
               </div>
 

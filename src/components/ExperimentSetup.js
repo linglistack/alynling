@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import IngestDataStep from './IngestDataStep';
 import ConfigureExperiment from './ConfigureExperiment';
-import AnalyzeExperiment from './AnalyzeExperiment';
 import { geoliftAPI } from '../utils/geoliftAPI';
 import './ExperimentSetup.css';
 
@@ -26,11 +25,8 @@ const ExperimentSetup = ({ onBack }) => {
   const [processedData, setProcessedData] = useState(null);
   const [uploadError, setUploadError] = useState('');
   const [isUploading, setIsUploading] = useState(false);
-  const [configSummary, setConfigSummary] = useState(null);
-  
   // Cache API results to prevent re-running when navigating back
   const [cachedMarketSelection, setCachedMarketSelection] = useState(null);
-  const [cachedAnalysisResults, setCachedAnalysisResults] = useState(null);
   
   // Track pre-call loading state to prevent duplicate API calls
   const [isPreCallingMarketSelection, setIsPreCallingMarketSelection] = useState(false);
@@ -44,8 +40,6 @@ const ExperimentSetup = ({ onBack }) => {
       setCurrentStep(1);
     } else if (step === 2 && processedData) {
       setCurrentStep(2);
-    } else if (step === 3 && processedData && configSummary) {
-      setCurrentStep(3);
     }
   };
 
@@ -79,10 +73,10 @@ const ExperimentSetup = ({ onBack }) => {
         // Simulate progress for better UX (cap at 99% until API completes)
         progressInterval = setInterval(() => {
           setMarketSelectionProgress(prev => {
-            if (prev >= 99) return 99; // Cap at 99% until API completes
-            return Math.min(prev + Math.random() * 6, 99); // Random increments but never exceed 99%
+            if (prev >= 99) return 98; // Cap at 99% until API completes
+            return Math.min(prev + Math.random() * 6, 98); // Random increments but never exceed 99%
           });
-        }, 2000); // Update every 2 seconds
+        }, 3000); // Update every 3 seconds
         
         // Process data locally first
         const headers = (fileData.headers || []).map(h => String(h).trim().toLowerCase());
@@ -303,15 +297,6 @@ const ExperimentSetup = ({ onBack }) => {
             style={{ cursor: processedData ? 'pointer' : 'not-allowed' }}
           >
             <div className="step-circle">2</div>
-            <div className="step-label">Configure</div>
-          </div>
-          <div className={`step-connector ${currentStep >= 3 ? 'active' : ''}`}></div>
-          <div 
-            className={`step ${currentStep >= 3 ? 'active' : ''} ${currentStep === 3 ? 'current' : ''} ${!configSummary ? 'disabled' : ''}`}
-            onClick={() => goToStep(3)}
-            style={{ cursor: (processedData && configSummary) ? 'pointer' : 'not-allowed' }}
-          >
-            <div className="step-circle">3</div>
             <div className="step-label">Analyze</div>
           </div>
         </div>
@@ -376,7 +361,6 @@ const ExperimentSetup = ({ onBack }) => {
                 </div>
             <ConfigureExperiment 
               processedData={processedData} 
-              onProceed={(payload) => { setConfigSummary(payload); setCurrentStep(3); }}
               cachedResults={cachedMarketSelection}
               onCacheResults={setCachedMarketSelection}
               isPreCallingMarketSelection={isPreCallingMarketSelection}
@@ -385,25 +369,7 @@ const ExperimentSetup = ({ onBack }) => {
           </>
         )}
 
-        {currentStep === 3 && (
-          <>
-            <div className="step-navigation">
-              <button 
-                className="nav-button prev-button"
-                onClick={goToPreviousStep}
-              >
-                <ArrowLeft size={16} />
-                Previous: Configure
-            </button>
-          </div>
-            <AnalyzeExperiment 
-              processedData={processedData} 
-              config={configSummary}
-              cachedResults={cachedAnalysisResults}
-              onCacheResults={setCachedAnalysisResults}
-            />
-          </>
-        )}
+
       </div>
     </div>
   );

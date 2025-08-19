@@ -239,6 +239,8 @@
     display: grid;
     grid-template-columns: 40% 60%;
     gap: 16px;
+    align-items: start;
+    min-height: 500px;
 }
 
 .configure-left {
@@ -247,6 +249,8 @@
 
 .configure-right {
     min-width: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .configure-split.equal {
@@ -325,7 +329,10 @@
     border: 1px solid #e5e7eb;
     border-radius: 12px;
     padding: 16px;
-    height: 100%;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 .results-title {
@@ -340,6 +347,12 @@
 .results-placeholder {
     color: #6b7280;
     font-size: 13px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
 }
 
 .results-error {
@@ -587,6 +600,8 @@
     }
 }
 
+
+
 .progress-text {
     font-size: 14px;
     font-weight: 600;
@@ -604,9 +619,12 @@
 /* Ant Design table customization */
 .antd-table-wrapper {
     margin-top: 16px;
-    height: calc(100vh - 160px);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
     /* Dynamic height that adjusts with left panel content */
-    overflow: auto;
+    overflow: hidden;
     position: relative;
 }
 
@@ -756,4 +774,194 @@
 
 .antd-table-wrapper .ant-table-thead>tr>th.react-resizable:hover {
     border-right: 1px solid #667eea;
+}
+
+/* Analysis Charts Section */
+.analysis-section {
+    margin-top: 20px;
+    padding-top: 16px;
+}
+
+.analysis-charts {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.chart-container {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 16px;
+}
+
+.chart-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.config-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.analysis-info {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.analysis-info h4 {
+    margin: 0 0 12px 0;
+    color: #1e293b;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.analysis-info p {
+    margin: 8px 0;
+    color: #475569;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.analysis-info strong {
+    color: #334155;
+    font-weight: 600;
+}
+
+/* Location Selection Input */
+.location-selection-input {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+}
+
+.location-selection-input:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.location-summary {
+    color: #374151;
+    flex: 1;
+}
+
+.location-edit-icon {
+    font-size: 16px;
+    opacity: 0.6;
+    margin-left: 8px;
+}
+
+/* Test Statistics Section */
+.test-statistics {
+    background-color: #2c3e50;
+    color: #ecf0f1;
+    font-family: 'Courier New', 'Monaco', monospace;
+    font-size: 14px;
+    padding: 20px;
+    margin: 20px 0;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.stats-header {
+    margin-bottom: 15px;
+}
+
+.stats-title {
+    color: #3498db;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 2px;
+}
+
+.stats-border {
+    color: #3498db;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.stats-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.stat-label {
+    color: #ecf0f1;
+    font-weight: normal;
+}
+
+.stat-value {
+    color: #f39c12;
+    font-weight: bold;
+    text-align: right;
+}
+
+/* Analysis Tab Styles */
+.analysis-section {
+    padding: 0;
+    margin: 0;
+}
+
+.analysis-charts {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.chart-container {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.chart-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 12px 0;
+    text-align: center;
+}
+
+/* Table Actions */
+.table-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding: 16px 0 8px 0;
+    margin-top: auto;
+}
+
+/* Tab Content Overrides for Configure Experiment */
+.configure-right .tab-content {
+    align-items: stretch;
+    justify-content: stretch;
+    padding: 0;
+}
+
+/* Antd table wrapper adjustments for tab layout */
+.configure-right .antd-table-wrapper {
+    margin-top: 0;
 }

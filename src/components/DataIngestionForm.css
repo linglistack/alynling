@@ -230,6 +230,26 @@
   background: white;
 }
 
+/* Style select dropdowns to match text inputs */
+.text-input select,
+select.text-input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  background: white;
+  cursor: pointer;
+  width: 100%;
+}
+
+.text-input select:focus,
+select.text-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
 .dropdown-arrow {
   position: absolute;
   right: 12px;

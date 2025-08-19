@@ -555,6 +555,34 @@ function(req, res) {
       alpha = alpha,
       parallel = FALSE
     )
+    
+    # Run actual GeoLift analysis to get test statistics
+    geolift_result <- NULL
+    test_statistics <- NULL
+    tryCatch({
+      geolift_result <- GeoLift(
+        data = df,
+        locations = chosen_locs,
+        treatment_start_time = treatment_start_time,
+        treatment_end_time = treatment_end_time,
+        alpha = alpha,
+        model = "none",
+        ConfidenceIntervals = TRUE
+      )
+      
+      # Extract test statistics
+      test_statistics <- list(
+        average_att = as.numeric(geolift_result$inference$ATT)[1],
+        percent_lift = as.numeric(geolift_result$inference$Perc.Lift)[1],
+        incremental_y = as.numeric(geolift_result$incremental)[1],
+        p_value = as.numeric(geolift_result$inference$pvalue)[1],
+        is_significant = as.logical(geolift_result$inference$pvalue < alpha)[1],
+        effect_direction = ifelse(as.numeric(geolift_result$inference$ATT)[1] > 0, "positive", "negative")
+      )
+    }, error = function(e) {
+      cat("[EDA] GeoLift analysis failed:", e$message, "\n")
+      # Continue without test statistics if GeoLift fails
+    })
 
     list(
       success = TRUE,
@@ -570,7 +598,8 @@ function(req, res) {
       power_curve = list(
         effect_size = power$EffectSize,
         power = power$power
-      )
+      ),
+      test_statistics = test_statistics
     )
   }, error = function(e) {
     res$status <- 500

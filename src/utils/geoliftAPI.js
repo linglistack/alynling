@@ -90,19 +90,39 @@ export const geoliftAPI = {
       effectSize = [0, 0.05, 0.1, 0.15, 0.2, 0.25],
       lookbackWindow = 1,
       cpic = 1,
-      alpha = 0.1
+      alpha = 0.1,
+      budget = 100000,
+      numTestGeos = 2,
+      includedLocations = [],
+      excludedLocations = []
     } = options;
 
+    const requestBody = {
+      data,
+      treatment_periods: treatmentPeriods,
+      effect_size: effectSize,
+      lookback_window: lookbackWindow,
+      cpic,
+      alpha,
+      budget,
+      N: Array.from({length: numTestGeos - 1}, (_, i) => i + 2), // Convert to range: [2, 3, ..., numTestGeos]
+      include_markets: includedLocations,
+      exclude_markets: excludedLocations
+    };
+    
+    console.log('[geoliftAPI] Market selection request body:', {
+      ...requestBody,
+      data: `${Array.isArray(data) ? data.length : 'unknown'} rows`,
+      include_markets: includedLocations,
+      exclude_markets: excludedLocations,
+      budget,
+      N: requestBody.N,
+      numTestGeos_original: numTestGeos
+    });
+    
     return apiRequest('/api/market-selection', {
       method: 'POST',
-      body: JSON.stringify({
-        data,
-        treatment_periods: treatmentPeriods,
-        effect_size: effectSize,
-        lookback_window: lookbackWindow,
-        cpic,
-        alpha
-      })
+      body: JSON.stringify(requestBody)
     });
   },
 
@@ -165,6 +185,14 @@ export const geoliftAPI = {
       alpha = 0.1,
       marketRank = 1,
     } = options;
+
+    console.log('[geoliftAPI] EDA plots request:', {
+      dataRows: Array.isArray(data) ? data.length : 'unknown',
+      treatmentPeriods,
+      alpha,
+      marketRank,
+      effectSize: effectSize.length > 5 ? `${effectSize.slice(0,3)}...` : effectSize
+    });
 
     return apiRequest('/api/eda/plots', {
       method: 'POST',
