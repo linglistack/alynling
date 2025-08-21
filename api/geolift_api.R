@@ -172,6 +172,25 @@ function(req, res) {
     }
 
     data <- as.data.frame(data)
+    
+    # Ensure Y column is numeric (in case JSON sends it as strings)
+    if (Y_id %in% names(data)) {
+      data[[Y_id]] <- as.numeric(as.character(data[[Y_id]]))
+      # Check for any NA values created during conversion
+      if (any(is.na(data[[Y_id]]))) {
+        na_count <- sum(is.na(data[[Y_id]]))
+        res$status <- 400
+        return(list(error = paste("Y column contains", na_count, "non-numeric values that couldn't be converted")))
+      }
+    } else {
+      res$status <- 400
+      return(list(error = paste("Y column not found:", Y_id)))
+    }
+    
+    # Ensure time column is numeric if present
+    if (time_id %in% names(data)) {
+      data[[time_id]] <- as.numeric(as.character(data[[time_id]]))
+    }
 
     # Sanitize include/exclude markets to match available locations (lowercase)
     if (!(location_id %in% names(data))) {
@@ -255,6 +274,21 @@ function(req, res) {
     
     data <- as.data.frame(data)
     
+    # Ensure Y column is numeric (in case JSON sends it as strings)
+    if ("Y" %in% names(data)) {
+      data$Y <- as.numeric(as.character(data$Y))
+      if (any(is.na(data$Y))) {
+        na_count <- sum(is.na(data$Y))
+        res$status <- 400
+        return(list(error = paste("Y column contains", na_count, "non-numeric values that couldn't be converted")))
+      }
+    }
+    
+    # Ensure time column is numeric if present
+    if ("time" %in% names(data)) {
+      data$time <- as.numeric(as.character(data$time))
+    }
+    
     if (is.character(locations) && length(locations) == 1) {
       locations <- strsplit(locations, ",")[[1]]
       locations <- trimws(locations)
@@ -315,6 +349,21 @@ function(req, res) {
     }
     
     data <- as.data.frame(data)
+    
+    # Ensure Y column is numeric (in case JSON sends it as strings)
+    if ("Y" %in% names(data)) {
+      data$Y <- as.numeric(as.character(data$Y))
+      if (any(is.na(data$Y))) {
+        na_count <- sum(is.na(data$Y))
+        res$status <- 400
+        return(list(error = paste("Y column contains", na_count, "non-numeric values that couldn't be converted")))
+      }
+    }
+    
+    # Ensure time column is numeric if present
+    if ("time" %in% names(data)) {
+      data$time <- as.numeric(as.character(data$time))
+    }
     
     if (is.character(locations) && length(locations) == 1) {
       locations <- strsplit(locations, ",")[[1]]
@@ -434,6 +483,14 @@ function(req, res) {
     if (!all(req_cols %in% names(df))) {
       res$status <- 400
       return(list(error = paste("Required columns missing:", paste(setdiff(req_cols, names(df)), collapse = ", "))))
+    }
+    
+    # Ensure Y column is numeric (in case JSON sends it as strings)
+    df$Y <- as.numeric(as.character(df$Y))
+    if (any(is.na(df$Y))) {
+      na_count <- sum(is.na(df$Y))
+      res$status <- 400
+      return(list(error = paste("Y column contains", na_count, "non-numeric values that couldn't be converted")))
     }
 
     if (!"date" %in% names(df)) {

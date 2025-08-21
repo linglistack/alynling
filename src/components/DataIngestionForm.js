@@ -11,16 +11,17 @@ const DataIngestionForm = ({ onBack }) => {
   // State for both steps
   const [selectedFile, setSelectedFile] = useState('');
   const [fileData, setFileData] = useState(null);
-  const [dateColumn, setDateColumn] = useState('date');
-  const [outcomeColumn, setOutcomeColumn] = useState('app_download');
-  const [locationColumn, setLocationColumn] = useState('city');
+  const [dateColumn, setDateColumn] = useState('');
+  const [outcomeColumn, setOutcomeColumn] = useState('');
+  const [locationColumn, setLocationColumn] = useState('');
   const [containsZipCodes, setContainsZipCodes] = useState(false);
-  const [dateFormat, setDateFormat] = useState('mm/dd/yy');
+  const [dateFormat, setDateFormat] = useState('');
   const [activeTab, setActiveTab] = useState('data');
   const [useDefaultFile, setUseDefaultFile] = useState(false);
   const [availableLocations, setAvailableLocations] = useState([]);
   const [selectedTestLocations, setSelectedTestLocations] = useState([]);
   const [testLocations, setTestLocations] = useState('');
+  const [isDataIngested, setIsDataIngested] = useState(false);
 
   // Step 2 state variables  
   const [testStart, setTestStart] = useState('2024-03-01'); // Date format
@@ -33,7 +34,7 @@ const DataIngestionForm = ({ onBack }) => {
   const [analysisResults, setAnalysisResults] = useState(null);
   const [detectedDateRange, setDetectedDateRange] = useState(null);
 
-  const currentStep = fileData ? 2 : 1;
+  const currentStep = (fileData && isDataIngested) ? 2 : 1;
 
   // Debug availableLocations changes
   useEffect(() => {
@@ -142,19 +143,11 @@ const DataIngestionForm = ({ onBack }) => {
   const convertToCsvString = (data) => {
     if (!data || !data.rows) return '';
     const headers = (data.headers || []).map(h => String(h).trim().toLowerCase());
-    const toKey = (s) => String(s || '').trim().toLowerCase();
-    const findIdx = (name, fallbacks = []) => {
-      const targets = [name, ...fallbacks].map(toKey);
-      for (let t of targets) {
-        const idx = headers.indexOf(t);
-        if (idx !== -1) return idx;
-      }
-      return -1;
-    };
-
-    const locIdx = findIdx(locationColumn, ['city', 'location_id', 'geo', 'market']);
-    const yIdx = findIdx(outcomeColumn, ['y', 'outcome', 'app_download', 'revenue', 'sales']);
-    const dateIdx = findIdx(dateColumn, ['date', 'time', 'timestamp', 'day']);
+    
+    // Use exact user-mapped column names (no fallbacks)
+    const locIdx = headers.indexOf(locationColumn.trim().toLowerCase());
+    const yIdx = headers.indexOf(outcomeColumn.trim().toLowerCase());
+    const dateIdx = headers.indexOf(dateColumn.trim().toLowerCase());
 
     if (locIdx === -1 || yIdx === -1 || dateIdx === -1) return '';
 
@@ -230,9 +223,9 @@ const DataIngestionForm = ({ onBack }) => {
 
       const csvData = convertToCsvString(fileData);
       const uploadResult = await geoliftAPI.uploadData(csvData, {
-        locationCol: 'location',
-        timeCol: 'date',
-        outcomeCol: 'Y'
+        locationCol: locationColumn,
+        timeCol: dateColumn,
+        outcomeCol: outcomeColumn
       });
 
       if (!uploadResult.success) {
@@ -388,10 +381,12 @@ const DataIngestionForm = ({ onBack }) => {
           setSelectedTestLocations={setSelectedTestLocations}
           testLocations={testLocations}
           setTestLocations={setTestLocations}
+          isDataIngested={isDataIngested}
+          setIsDataIngested={setIsDataIngested}
         />
 
-      {/* Step 2: Configure analysis - only show when file is uploaded */}
-      {fileData && (
+      {/* Step 2: Configure analysis - only show when data is ingested */}
+      {fileData && isDataIngested && (
         <div className="step-section">
           <div className="ingestion-header">
             <h2 className="page-title">Step 2: Configure analysis</h2>

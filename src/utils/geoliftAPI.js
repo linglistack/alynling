@@ -113,6 +113,8 @@ export const geoliftAPI = {
     console.log('[geoliftAPI] Market selection request body:', {
       ...requestBody,
       data: `${Array.isArray(data) ? data.length : 'unknown'} rows`,
+      sampleDataRow: Array.isArray(data) && data.length > 0 ? data[0] : 'No data',
+      yValueTypes: Array.isArray(data) ? data.slice(0, 3).map((row, i) => `Row ${i}: ${typeof row.Y} - ${row.Y}`) : 'No data',
       include_markets: includedLocations,
       exclude_markets: excludedLocations,
       budget,

@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Info } from 'lucide-react';
 import './DataIngestionForm.css';
+import './ConfigureExperiment.css';
+import './IngestDataStep.style.css';
 
 // Reusable Step 1: Ingest Data component
 // Supports both controlled (via props) and uncontrolled (internal state) usage
@@ -34,21 +36,24 @@ const IngestDataStep = ({
   selectedTestLocations: controlledSelectedTestLocations,
   setSelectedTestLocations: controlledSetSelectedTestLocations,
   testLocations: controlledTestLocations,
-  setTestLocations: controlledSetTestLocations
+  setTestLocations: controlledSetTestLocations,
+  isDataIngested: controlledIsDataIngested,
+  setIsDataIngested: controlledSetIsDataIngested
 }) => {
   // Internal state fallbacks for uncontrolled usage
   const [internalSelectedFile, setInternalSelectedFile] = useState('');
   const [internalFileData, setInternalFileData] = useState(null);
-  const [internalDateColumn, setInternalDateColumn] = useState('date');
-  const [internalOutcomeColumn, setInternalOutcomeColumn] = useState('app_download');
-  const [internalLocationColumn, setInternalLocationColumn] = useState('city');
+  const [internalDateColumn, setInternalDateColumn] = useState('');
+  const [internalOutcomeColumn, setInternalOutcomeColumn] = useState('');
+  const [internalLocationColumn, setInternalLocationColumn] = useState('');
   const [internalContainsZipCodes, setInternalContainsZipCodes] = useState(false);
-  const [internalDateFormat, setInternalDateFormat] = useState('mm/dd/yy');
+  const [internalDateFormat, setInternalDateFormat] = useState('');
   const [internalActiveTab, setInternalActiveTab] = useState('data');
   const [internalUseDefaultFile, setInternalUseDefaultFile] = useState(false);
   const [internalAvailableLocations, setInternalAvailableLocations] = useState([]);
   const [internalSelectedTestLocations, setInternalSelectedTestLocations] = useState([]);
   const [internalTestLocations, setInternalTestLocations] = useState('');
+  const [internalIsDataIngested, setInternalIsDataIngested] = useState(false);
 
   // Post-upload options state
   const [trimMostlyZero, setTrimMostlyZero] = useState(false);
@@ -64,6 +69,10 @@ const IngestDataStep = ({
   const [combinedLinePlot, setCombinedLinePlot] = useState(true);
   const highchartsContainerRef = useRef(null);
   const chartInstanceRef = useRef(null);
+
+  // New state to track loading and errors
+  const [ingestLoading, setIngestLoading] = useState(false);
+  const [ingestError, setIngestError] = useState('');
 
   // Effective values and setters
   const selectedFile = controlledSelectedFile !== undefined ? controlledSelectedFile : internalSelectedFile;
@@ -96,13 +105,208 @@ const IngestDataStep = ({
   const availableLocations = controlledAvailableLocations !== undefined ? controlledAvailableLocations : internalAvailableLocations;
   const setAvailableLocations = controlledSetAvailableLocations || setInternalAvailableLocations;
 
+  // eslint-disable-next-line no-unused-vars
   const selectedTestLocations = controlledSelectedTestLocations !== undefined ? controlledSelectedTestLocations : internalSelectedTestLocations;
   const setSelectedTestLocations = controlledSetSelectedTestLocations || setInternalSelectedTestLocations;
 
+  // eslint-disable-next-line no-unused-vars
   const testLocations = controlledTestLocations !== undefined ? controlledTestLocations : internalTestLocations;
   const setTestLocations = controlledSetTestLocations || setInternalTestLocations;
 
-  const processCSVData = (csvData, fileName) => {
+  const isDataIngested = controlledIsDataIngested !== undefined ? controlledIsDataIngested : internalIsDataIngested;
+  const setIsDataIngested = controlledSetIsDataIngested || setInternalIsDataIngested;
+
+  // Utility function to check if a value looks like a ZIP code
+  const isZipCode = (value) => {
+    const str = String(value).trim();
+    // US ZIP codes: 5 digits or 5+4 format
+    return /^\d{5}(-\d{4})?$/.test(str);
+  };
+
+  // Utility function to parse date based on format
+  const parseDate = (dateStr, format) => {
+    if (!dateStr || !format) return null;
+    
+    const str = String(dateStr).trim();
+    let day, month, year;
+    
+    try {
+      switch (format) {
+        case 'MM/dd/yyyy':
+          [month, day, year] = str.split('/').map(Number);
+          break;
+        case 'dd/MM/yyyy':
+          [day, month, year] = str.split('/').map(Number);
+          break;
+        case 'yyyy-MM-dd':
+          [year, month, day] = str.split('-').map(Number);
+          break;
+        case 'yyyy/MM/dd':
+          [year, month, day] = str.split('/').map(Number);
+          break;
+        case 'MM-dd-yyyy':
+          [month, day, year] = str.split('-').map(Number);
+          break;
+        case 'dd-MM-yyyy':
+          [day, month, year] = str.split('-').map(Number);
+          break;
+        case 'MM/dd/yy':
+          [month, day, year] = str.split('/').map(Number);
+          year = year < 50 ? 2000 + year : 1900 + year; // Assume 00-49 = 2000-2049, 50-99 = 1950-1999
+          break;
+        case 'dd/MM/yy':
+          [day, month, year] = str.split('/').map(Number);
+          year = year < 50 ? 2000 + year : 1900 + year;
+          break;
+        case 'yy-MM-dd':
+          [year, month, day] = str.split('-').map(Number);
+          year = year < 50 ? 2000 + year : 1900 + year;
+          break;
+        default:
+          // Try to parse as-is
+          return new Date(str);
+      }
+      
+      // Validate the parsed values
+      if (!day || !month || !year || month < 1 || month > 12 || day < 1 || day > 31) {
+        return null;
+      }
+      
+      // Create date (month is 0-indexed in JavaScript Date)
+      return new Date(year, month - 1, day);
+    } catch (error) {
+      console.warn('Date parsing error:', error, { dateStr, format });
+      return null;
+    }
+  };
+
+  // Function to standardize date to ISO format (yyyy-MM-dd)
+  const standardizeDate = (dateStr, format) => {
+    const parsed = parseDate(dateStr, format);
+    if (!parsed || isNaN(parsed.getTime())) return dateStr; // Return original if parsing fails
+    
+    const year = parsed.getFullYear();
+    const month = String(parsed.getMonth() + 1).padStart(2, '0');
+    const day = String(parsed.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Reset ingestion status when key parameters change
+  useEffect(() => {
+    if (isDataIngested) {
+      setIsDataIngested(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateColumn, outcomeColumn, locationColumn, dateFormat, containsZipCodes]);
+
+  // Handle data ingestion with column mapping validation
+  const handleIngestData = async () => {
+    if (!fileData || !dateColumn || !outcomeColumn || !locationColumn || !dateFormat) {
+      setIngestError('Please map all required fields: Date column, Outcome column, Location column, and Date format');
+      return;
+    }
+
+    try {
+      setIngestLoading(true);
+      setIngestError('');
+
+      // Validate column mappings exist in headers
+      const headers = (fileData.headers || []).map(h => String(h).trim().toLowerCase());
+      const mappedColumns = {
+        date: dateColumn.trim().toLowerCase(),
+        outcome: outcomeColumn.trim().toLowerCase(), 
+        location: locationColumn.trim().toLowerCase()
+      };
+
+      const missingColumns = [];
+      if (!headers.includes(mappedColumns.date)) missingColumns.push(`Date: "${dateColumn}"`);
+      if (!headers.includes(mappedColumns.outcome)) missingColumns.push(`Outcome: "${outcomeColumn}"`);
+      if (!headers.includes(mappedColumns.location)) missingColumns.push(`Location: "${locationColumn}"`);
+
+      if (missingColumns.length > 0) {
+        throw new Error(`Column(s) not found in data: ${missingColumns.join(', ')}`);
+      }
+
+      // Process and validate the data
+      const processedRows = [];
+      const dateIssues = [];
+      const zipCodeLocations = [];
+      
+      for (let i = 0; i < fileData.rows.length; i++) {
+        const row = fileData.rows[i];
+        const location = (row[headers.indexOf(mappedColumns.location)] || '').trim();
+        const outcome = row[headers.indexOf(mappedColumns.outcome)];
+        const dateValue = (row[headers.indexOf(mappedColumns.date)] || '').trim();
+        
+        // Skip empty rows
+        if (!location || !dateValue) continue;
+        
+        // Check for ZIP codes if the option is enabled
+        if (containsZipCodes && isZipCode(location)) {
+          zipCodeLocations.push(location);
+          continue; // Skip ZIP code entries
+        }
+        
+        // Parse and standardize the date
+        const standardizedDate = standardizeDate(dateValue, dateFormat);
+        const parsedDate = parseDate(dateValue, dateFormat);
+        
+        if (!parsedDate || isNaN(parsedDate.getTime())) {
+          dateIssues.push(`Row ${i + 2}: "${dateValue}" doesn't match format ${dateFormat}`);
+          continue;
+        }
+        
+        processedRows.push({
+          location: location.toLowerCase(),
+          outcome: parseFloat(outcome) || 0,
+          originalDate: dateValue,
+          standardizedDate: standardizedDate,
+          parsedDate: parsedDate
+        });
+      }
+      
+      // Report issues if any
+      if (dateIssues.length > 0) {
+        const maxErrors = 5;
+        const errorMessage = `Date format issues found:\n${dateIssues.slice(0, maxErrors).join('\n')}${dateIssues.length > maxErrors ? `\n... and ${dateIssues.length - maxErrors} more` : ''}`;
+        throw new Error(errorMessage);
+      }
+      
+      if (containsZipCodes && zipCodeLocations.length > 0) {
+        console.log(`Filtered out ${zipCodeLocations.length} ZIP code entries:`, zipCodeLocations.slice(0, 10));
+      }
+      
+      if (processedRows.length === 0) {
+        throw new Error('No valid data rows found after processing. Please check your column mappings and date format.');
+      }
+      
+      // Update available locations list (excluding ZIP codes)
+      const uniqueLocations = [...new Set(processedRows.map(row => row.location))].sort();
+      setAvailableLocations(uniqueLocations);
+      
+      // Mark as successfully ingested
+      setIsDataIngested(true);
+      console.log('Data ingested successfully:', {
+        mappings: mappedColumns,
+        totalRows: processedRows.length,
+        uniqueLocations: uniqueLocations.length,
+        zipCodesFiltered: zipCodeLocations.length,
+        dateRange: processedRows.length > 0 ? {
+          earliest: processedRows[0].standardizedDate,
+          latest: processedRows[processedRows.length - 1].standardizedDate
+        } : null
+      });
+      
+    } catch (error) {
+      setIngestError(error.message);
+      setIsDataIngested(false);
+    } finally {
+      setIngestLoading(false);
+    }
+  };
+
+  const processCSVData = (csvData, fileName, autoDetect = false) => {
+    console.log('[IngestDataStep] Processing CSV data:', { fileName, autoDetect, lines: csvData.split('\n').length });
     const lines = csvData.split('\n');
     const headers = lines[0].split(',').map(h => h.trim());
     const headersLower = headers.map(h => String(h).trim().toLowerCase());
@@ -142,13 +346,15 @@ const IngestDataStep = ({
       : [];
 
     // Persist parsed data
-    setFileData({ headers, rows, totalRows: lines.length - 1 });
+    const newFileData = { headers, rows, totalRows: lines.length - 1 };
+    console.log('[IngestDataStep] Setting file data:', { headers: newFileData.headers, rowCount: newFileData.rows.length, totalRows: newFileData.totalRows });
+    setFileData(newFileData);
     setAvailableLocations(uniqueLocations);
     setSelectedTestLocations([]);
     setTestLocations('');
 
-    // Align visible location column input if we detected a different header
-    if (locIdx !== -1) {
+    // Align visible location column input if we detected a different header (only for auto-detect mode)
+    if (autoDetect && locIdx !== -1) {
       const detectedHeader = headers[locIdx];
       if (detectedHeader && detectedHeader !== locationColumn) {
         setLocationColumn(detectedHeader);
@@ -162,10 +368,24 @@ const IngestDataStep = ({
       setSelectedFile(file.name);
       setUseDefaultFile(false);
 
+      // Reset all mapping fields when new file is uploaded
+      setLocationColumn('');
+      setOutcomeColumn('');
+      setDateColumn('');
+      setDateFormat('');
+      setContainsZipCodes(false);
+      
+      // Reset data ingestion state
+      setIsDataIngested(false);
+      
+      // Reset to data tab to show the uploaded table
+      setActiveTab('data');
+
       const reader = new FileReader();
       reader.onload = (event) => {
         const csvData = event.target.result;
-        processCSVData(csvData, file.name);
+        console.log('[IngestDataStep] File loaded, processing CSV data...', { fileName: file.name, dataLength: csvData.length });
+        processCSVData(csvData, file.name, false); // User upload - no auto-detection
       };
       reader.readAsText(file);
     } else {
@@ -174,6 +394,15 @@ const IngestDataStep = ({
       setAvailableLocations([]);
       setSelectedTestLocations([]);
       setTestLocations('');
+      
+      // Reset mapping fields when no file
+      setLocationColumn('');
+      setOutcomeColumn('');
+      setDateColumn('');
+      setDateFormat('');
+      setContainsZipCodes(false);
+      setIsDataIngested(false);
+      setActiveTab('data');
     }
   };
 
@@ -184,10 +413,11 @@ const IngestDataStep = ({
       const response = await fetch('/online_mkt_us_states.csv');
       const csvData = await response.text();
       // Set correct column mappings for online_mkt_us_states.csv
-      setLocationColumn('city');
+      setLocationColumn('state');
       setOutcomeColumn('app_download');
       setDateColumn('date');
-      processCSVData(csvData, 'online_mkt_us_states.csv');
+      setDateFormat('yyyy-MM-dd');
+      processCSVData(csvData, 'online_mkt_us_states.csv', false); // Sample data - already explicitly mapped
     } catch (error) {
       console.error('Error loading default file:', error);
     }
@@ -229,6 +459,15 @@ const IngestDataStep = ({
     const renderChart = async () => {
       if (activeTab !== 'plot') return;
       
+      // Only render chart if data has been ingested
+      if (!isDataIngested) {
+        if (chartInstanceRef.current) {
+          chartInstanceRef.current.destroy();
+          chartInstanceRef.current = null;
+        }
+        return;
+      }
+      
       // If combined chart is turned off, destroy existing chart and return
       if (!combinedLinePlot) {
         if (chartInstanceRef.current) {
@@ -241,30 +480,60 @@ const IngestDataStep = ({
       if (!fileData || !highchartsContainerRef.current) return;
       const Highcharts = await loadHighcharts();
 
-      // Build series by city
-      const cityToPoints = {};
+      // Build series by location using mapped column names
+      const locationToPoints = {};
       const headers = (fileData.headers || []).map(h => String(h).trim().toLowerCase());
-      const idxCity = headers.indexOf('location') !== -1 ? headers.indexOf('location') : headers.indexOf('city');
-      const idxY = headers.indexOf('y') !== -1 ? headers.indexOf('y') : headers.indexOf('app_download');
-      const idxDate = headers.indexOf('date');
-      if (idxCity === -1 || idxY === -1 || idxDate === -1) return;
+      
+      // Use mapped column names instead of hardcoded ones
+      const idxLocation = headers.indexOf(locationColumn.trim().toLowerCase());
+      const idxOutcome = headers.indexOf(outcomeColumn.trim().toLowerCase());
+      const idxDate = headers.indexOf(dateColumn.trim().toLowerCase());
+      
+      if (idxLocation === -1 || idxOutcome === -1 || idxDate === -1) {
+        console.error('Mapped columns not found in headers:', { locationColumn, outcomeColumn, dateColumn, headers });
+        return;
+      }
 
       const dates = [];
+      const dateToStandardized = new Map();
+      
       fileData.rows.forEach(row => {
-        const city = (row[idxCity] || '').trim();
-        const y = Number(row[idxY]) || 0;
-        const d = (row[idxDate] || '').trim();
-        if (!city) return;
-        if (!cityToPoints[city]) cityToPoints[city] = [];
-        cityToPoints[city].push({ d, y });
-        if (!dates.includes(d)) dates.push(d);
+        const location = (row[idxLocation] || '').trim();
+        const outcome = Number(row[idxOutcome]) || 0;
+        const dateStr = (row[idxDate] || '').trim();
+        
+        if (!location || !dateStr) return;
+        
+        // Filter out ZIP codes if option is enabled
+        if (containsZipCodes && isZipCode(location)) return;
+        
+        // Parse and standardize the date
+        const standardizedDate = standardizeDate(dateStr, dateFormat);
+        const parsedDate = parseDate(dateStr, dateFormat);
+        
+        // Skip invalid dates
+        if (!parsedDate || isNaN(parsedDate.getTime())) return;
+        
+        if (!locationToPoints[location]) locationToPoints[location] = [];
+        locationToPoints[location].push({ d: standardizedDate, y: outcome, originalDate: dateStr });
+        
+        if (!dates.includes(standardizedDate)) {
+          dates.push(standardizedDate);
+          dateToStandardized.set(standardizedDate, dateStr);
+        }
       });
-      dates.sort((a,b) => new Date(a) - new Date(b));
+      
+      // Sort dates properly using the parsed dates
+      dates.sort((a, b) => {
+        const dateA = parseDate(a, 'yyyy-MM-dd') || new Date(a);
+        const dateB = parseDate(b, 'yyyy-MM-dd') || new Date(b);
+        return dateA - dateB;
+      });
 
-      const series = Object.keys(cityToPoints).map(city => {
-        const map = new Map(cityToPoints[city].map(p => [p.d, p.y]));
+      const series = Object.keys(locationToPoints).map(location => {
+        const map = new Map(locationToPoints[location].map(p => [p.d, p.y]));
         return {
-          name: city,
+          name: location,
           data: dates.map(d => map.has(d) ? map.get(d) : null),
           connectNulls: true
         };
@@ -276,9 +545,9 @@ const IngestDataStep = ({
       }
 
       chartInstanceRef.current = Highcharts.chart(highchartsContainerRef.current, {
-        title: { text: 'Revenue by Location (Combined)' },
-        xAxis: { categories: dates, title: { text: 'Date' } },
-        yAxis: { title: { text: 'Y' } },
+        title: { text: `${outcomeColumn} by ${locationColumn} (Combined)` },
+        xAxis: { categories: dates, title: { text: dateColumn } },
+        yAxis: { title: { text: outcomeColumn } },
         legend: { enabled: true },
         credits: { enabled: false },
         series
@@ -289,7 +558,7 @@ const IngestDataStep = ({
 
     // Preserve chart instance when switching tabs; clean up only on unmount
     return () => {};
-  }, [combinedLinePlot, fileData, activeTab]);
+  }, [combinedLinePlot, fileData, activeTab, isDataIngested, locationColumn, outcomeColumn, dateColumn]);
 
   useEffect(() => {
     return () => {
@@ -468,14 +737,42 @@ const IngestDataStep = ({
           <div className="form-section">
             <label className="form-label">Date format</label>
             <div className="input-with-dropdown">
-              <input
-                type="text"
+              <select
                 value={dateFormat}
                 onChange={(e) => setDateFormat(e.target.value)}
                 className="text-input"
-              />
-              <div className="dropdown-arrow">▼</div>
+              >
+                <option value="">Select date format...</option>
+                <option value="MM/dd/yyyy">MM/dd/yyyy (e.g., 03/15/2024)</option>
+                <option value="dd/MM/yyyy">dd/MM/yyyy (e.g., 15/03/2024)</option>
+                <option value="yyyy-MM-dd">yyyy-MM-dd (e.g., 2024-03-15)</option>
+                <option value="yyyy/MM/dd">yyyy/MM/dd (e.g., 2024/03/15)</option>
+                <option value="MM-dd-yyyy">MM-dd-yyyy (e.g., 03-15-2024)</option>
+                <option value="dd-MM-yyyy">dd-MM-yyyy (e.g., 15-03-2024)</option>
+                <option value="MM/dd/yy">MM/dd/yy (e.g., 03/15/24)</option>
+                <option value="dd/MM/yy">dd/MM/yy (e.g., 15/03/24)</option>
+                <option value="yy-MM-dd">yy-MM-dd (e.g., 24-03-15)</option>
+              </select>
             </div>
+          </div>
+
+          <div className="form-section">
+            <div className="config-actions">
+              <button
+                type="button"
+                className={`secondary-btn ${ingestLoading ? 'disabled' : ''}`}
+                disabled={ingestLoading || !fileData || !dateColumn || !outcomeColumn || !locationColumn || !dateFormat}
+                onClick={handleIngestData}
+              >
+                {ingestLoading ? 'Ingesting...' : 'Ingest Data'}
+              </button>
+            </div>
+            {ingestError && <div className="error-message">{ingestError}</div>}
+            {isDataIngested && (
+              <div className="success-message">
+                Data successfully ingested! Plot is now available.
+              </div>
+            )}
           </div>
         </div>
 
@@ -528,12 +825,13 @@ const IngestDataStep = ({
             )}
             {activeTab === 'plot' && (
               fileData ? (
-                <div className="plot-container">
-                  <div className="chart-container">
-                    <div className="chart-header">
-                      <h3>Revenue by Location</h3>
-                      <p className="chart-subtitle">Revenue trends by city</p>
-                    </div>
+                isDataIngested ? (
+                  <div className="plot-container">
+                    <div className="chart-container">
+                      <div className="chart-header">
+                        <h3>{outcomeColumn} by {locationColumn}</h3>
+                        <p className="chart-subtitle">{outcomeColumn} trends by {locationColumn}</p>
+                      </div>
                     <div className="plot-controls" style={{ justifyContent: 'flex-end', marginBottom: 8 }}>
                       <label className="checkbox-label" style={{ gap: 6 }}>
                         <input type="checkbox" checked={combinedLinePlot} onChange={(e) => setCombinedLinePlot(e.target.checked)} />
@@ -562,39 +860,53 @@ const IngestDataStep = ({
                               return -1;
                             };
 
-                            const locIdx = findIdx(locationColumn, ['city', 'location_id', 'geo', 'market']);
-                            const yIdx = findIdx(outcomeColumn, ['y', 'outcome', 'app_download', 'revenue', 'sales']);
-                            const dateIdx = findIdx(dateColumn, ['date', 'time', 'timestamp', 'day']);
+                            const locIdx = headers.indexOf(locationColumn.trim().toLowerCase());
+                            const yIdx = headers.indexOf(outcomeColumn.trim().toLowerCase());
+                            const dateIdx = headers.indexOf(dateColumn.trim().toLowerCase());
 
                             if (locIdx === -1 || yIdx === -1 || dateIdx === -1) return null;
 
-                            const cityData = {};
+                            const locationData = {};
                             fileData.rows.forEach(row => {
-                              const city = (row[locIdx] || '').trim();
-                              const revenue = parseFloat(row[yIdx]) || 0;
-                              const date = row[dateIdx];
-                              if (city && !cityData[city]) {
-                                cityData[city] = [];
+                              const location = (row[locIdx] || '').trim();
+                              const outcome = parseFloat(row[yIdx]) || 0;
+                              const dateStr = (row[dateIdx] || '').trim();
+                              
+                              if (!location || !dateStr) return;
+                              
+                              // Filter out ZIP codes if option is enabled
+                              if (containsZipCodes && isZipCode(location)) return;
+                              
+                              // Parse and validate date
+                              const parsedDate = parseDate(dateStr, dateFormat);
+                              if (!parsedDate || isNaN(parsedDate.getTime())) return;
+                              
+                              const standardizedDate = standardizeDate(dateStr, dateFormat);
+                              
+                              if (!locationData[location]) {
+                                locationData[location] = [];
                               }
-                              if (city) {
-                                cityData[city].push({ date, revenue });
-                              }
+                              locationData[location].push({ 
+                                date: standardizedDate, 
+                                outcome: outcome,
+                                originalDate: dateStr 
+                              });
                             });
 
-                            const cities = Object.keys(cityData).sort();
+                            const locations = Object.keys(locationData).sort();
                             const colors = ['#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#ef4444'];
 
                             return (
-                              <div className="city-charts-grid">
-                                {cities.map((city, cityIndex) => {
-                                  const cityRows = cityData[city];
-                                  const color = colors[cityIndex % colors.length];
-                                  // Use this city's max revenue for scaling instead of global max
-                                  const maxRevenue = Math.max(...cityRows.map(d => d.revenue));
+                              <div className="location-charts-grid">
+                                {locations.map((location, locationIndex) => {
+                                  const locationRows = locationData[location];
+                                  const color = colors[locationIndex % colors.length];
+                                  // Use this location's max outcome for scaling instead of global max
+                                  const maxOutcome = Math.max(...locationRows.map(d => d.outcome));
 
                                   return (
-                                    <div key={cityIndex} className="city-area-chart">
-                                      <h4 className="city-title">{city}</h4>
+                                    <div key={locationIndex} className="location-area-chart">
+                                      <h4 className="location-title">{location}</h4>
                                       <div className="area-chart-container">
                                         <svg className="area-chart" viewBox="-50 0 450 320" preserveAspectRatio="xMidYMid meet">
                                           {[0, 25, 50, 75, 100].map((y, i) => (
@@ -606,10 +918,10 @@ const IngestDataStep = ({
 
                                           <path
                                             d={(() => {
-                                              if (cityRows.length === 0) return '';
-                                              const points = cityRows.map((dataPoint, index) => {
-                                                const x = (index / (cityRows.length - 1)) * 400;
-                                                const y = 250 - (dataPoint.revenue / maxRevenue) * 250;
+                                              if (locationRows.length === 0) return '';
+                                              const points = locationRows.map((dataPoint, index) => {
+                                                const x = (index / (locationRows.length - 1)) * 400;
+                                                const y = 250 - (dataPoint.outcome / maxOutcome) * 250;
                                                 return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
                                               });
                                               return points.join(' ') + ' L 400 250 L 0 250 Z';
@@ -620,15 +932,15 @@ const IngestDataStep = ({
                                             strokeWidth="2"
                                           />
 
-                                          {cityRows.map((dataPoint, index) => {
-                                            const x = (index / (cityRows.length - 1)) * 400;
-                                            const y = 250 - (dataPoint.revenue / maxRevenue) * 250;
+                                          {locationRows.map((dataPoint, index) => {
+                                            const x = (index / (locationRows.length - 1)) * 400;
+                                            const y = 250 - (dataPoint.outcome / maxOutcome) * 250;
                                             return <circle key={index} cx={x} cy={y} r="4" fill={color} stroke="white" strokeWidth="1" />;
                                           })}
 
-                                          {/* Y-axis labels scaled to this city's max */}
+                                          {/* Y-axis labels scaled to this location's max */}
                                           {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
-                                            const value = maxRevenue * ratio;
+                                            const value = maxOutcome * ratio;
                                             const y = 250 - ratio * 250;
                                             return (
                                               <text key={i} x="-20" y={y + 3} fontSize="10" fill="#6b7280" textAnchor="end">
@@ -638,10 +950,10 @@ const IngestDataStep = ({
                                           })}
 
                                           <text x="-40" y="125" fontSize="12" fill="#374151" textAnchor="middle" transform="rotate(-90, -40, 125)" fontWeight="500">
-                                            Revenue ($)
+                                            {outcomeColumn}
                                           </text>
 
-                                          {cityRows.length > 0 && (
+                                          {locationRows.length > 0 && (
                                             <>
                                               <text x="200" y="300" fontSize="12" fill="#374151" textAnchor="middle" fontWeight="500">
                                                 Time (Day)
@@ -652,9 +964,9 @@ const IngestDataStep = ({
                                               <text x="400" y="285" fontSize="10" fill="#6b7280" textAnchor="middle">
                                                 Apr 2024
                                               </text>
-                                              {cityRows.map((dataPoint, index) => {
-                                                if (index % Math.ceil(cityRows.length / 5) === 0 || index === cityRows.length - 1) {
-                                                  const x = (index / (cityRows.length - 1)) * 400;
+                                              {locationRows.map((dataPoint, index) => {
+                                                if (index % Math.ceil(locationRows.length / 5) === 0 || index === locationRows.length - 1) {
+                                                  const x = (index / (locationRows.length - 1)) * 400;
                                                   const date = new Date(dataPoint.date);
                                                   const month = date.toLocaleDateString('en-US', { month: 'short' });
                                                   const day = date.getDate();
@@ -684,6 +996,12 @@ const IngestDataStep = ({
                     </div>
                   </div>
                 </div>
+                ) : (
+                  <div className="ingestion-required-message">
+                    <h3>Data Ingestion Required</h3>
+                    <p>Please click "Ingest Data" in the left panel after mapping your columns to see the plot.</p>
+                  </div>
+                )
               ) : (
                 <p className="upload-prompt">Plot will appear here after data ingestion</p>
               )

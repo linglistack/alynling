@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import IngestDataStep from './IngestDataStep';
 import ConfigureExperiment from './ConfigureExperiment';
+
 import { geoliftAPI } from '../utils/geoliftAPI';
 import './ExperimentSetup.css';
 
@@ -11,11 +12,11 @@ const ExperimentSetup = ({ onBack }) => {
   // Controlled Step 1 state so we can validate and proceed
   const [selectedFile, setSelectedFile] = useState('');
   const [fileData, setFileData] = useState(null);
-  const [dateColumn, setDateColumn] = useState('date');
-  const [outcomeColumn, setOutcomeColumn] = useState('Y');
-  const [locationColumn, setLocationColumn] = useState('location');
+  const [dateColumn, setDateColumn] = useState('');
+  const [outcomeColumn, setOutcomeColumn] = useState('');
+  const [locationColumn, setLocationColumn] = useState('');
   const [containsZipCodes, setContainsZipCodes] = useState(false);
-  const [dateFormat, setDateFormat] = useState('mm/dd/yy');
+  const [dateFormat, setDateFormat] = useState('');
   const [activeTab, setActiveTab] = useState('data');
   const [useDefaultFile, setUseDefaultFile] = useState(false);
   const [availableLocations, setAvailableLocations] = useState([]);
@@ -24,7 +25,9 @@ const ExperimentSetup = ({ onBack }) => {
 
   const [processedData, setProcessedData] = useState(null);
   const [uploadError, setUploadError] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
+
+  // Track if data has been ingested (user clicked "Ingest Data" button)
+  const [isDataIngested, setIsDataIngested] = useState(false);
   // Cache API results to prevent re-running when navigating back
   const [cachedMarketSelection, setCachedMarketSelection] = useState(null);
   
@@ -32,13 +35,187 @@ const ExperimentSetup = ({ onBack }) => {
   const [isPreCallingMarketSelection, setIsPreCallingMarketSelection] = useState(false);
   const [marketSelectionProgress, setMarketSelectionProgress] = useState(0);
 
+  // Shared data processing function
+  const processDataForAPI = (data, colMappings) => {
+    const { locationColumn, outcomeColumn, dateColumn, dateFormat, containsZipCodes } = colMappings;
+    
+    if (!data || !data.rows || !locationColumn || !outcomeColumn || !dateColumn || !dateFormat) {
+      throw new Error('Missing required data or column mappings');
+    }
+
+    const headers = (data.headers || []).map(h => String(h).trim().toLowerCase());
+    
+    // Use exact user-mapped column names
+    const locIdx = headers.indexOf(locationColumn.trim().toLowerCase());
+    const yIdx = headers.indexOf(outcomeColumn.trim().toLowerCase());
+    const dateIdx = headers.indexOf(dateColumn.trim().toLowerCase());
+
+    if (locIdx === -1 || yIdx === -1 || dateIdx === -1) {
+      throw new Error(`Missing required columns in data headers. Expected: ${locationColumn}, ${outcomeColumn}, ${dateColumn}`);
+    }
+
+    // Date parsing utilities
+    const parseDate = (dateStr, format) => {
+      if (!dateStr || !format) return null;
+      
+      const str = String(dateStr).trim();
+      let day, month, year;
+      
+      try {
+        switch (format) {
+          case 'MM/dd/yyyy':
+            [month, day, year] = str.split('/').map(Number);
+            break;
+          case 'dd/MM/yyyy':
+            [day, month, year] = str.split('/').map(Number);
+            break;
+          case 'yyyy-MM-dd':
+            [year, month, day] = str.split('-').map(Number);
+            break;
+          case 'yyyy/MM/dd':
+            [year, month, day] = str.split('/').map(Number);
+            break;
+          case 'MM-dd-yyyy':
+            [month, day, year] = str.split('-').map(Number);
+            break;
+          case 'dd-MM-yyyy':
+            [day, month, year] = str.split('-').map(Number);
+            break;
+          case 'MM/dd/yy':
+            [month, day, year] = str.split('/').map(Number);
+            year = year < 50 ? 2000 + year : 1900 + year;
+            break;
+          case 'dd/MM/yy':
+            [day, month, year] = str.split('/').map(Number);
+            year = year < 50 ? 2000 + year : 1900 + year;
+            break;
+          case 'yy-MM-dd':
+            [year, month, day] = str.split('-').map(Number);
+            year = year < 50 ? 2000 + year : 1900 + year;
+            break;
+          default:
+            return new Date(str);
+        }
+        
+        if (!day || !month || !year || month < 1 || month > 12 || day < 1 || day > 31) {
+          return null;
+        }
+        
+        return new Date(year, month - 1, day);
+      } catch (error) {
+        return null;
+      }
+    };
+
+    const standardizeDate = (dateStr, format) => {
+      const parsed = parseDate(dateStr, format);
+      if (!parsed || isNaN(parsed.getTime())) return dateStr;
+      
+      const year = parsed.getFullYear();
+      const month = String(parsed.getMonth() + 1).padStart(2, '0');
+      const day = String(parsed.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    const isZipCode = (value) => {
+      const str = String(value).trim();
+      return /^\d{5}(-\d{4})?$/.test(str);
+    };
+
+    // Process and validate data
+    const validRows = [];
+    const dateIssues = [];
+    
+    for (let i = 0; i < data.rows.length; i++) {
+      const row = data.rows[i];
+      const location = (row[locIdx] || '').trim().toLowerCase();
+      const outcomeStr = (row[yIdx] || '').trim();
+      const dateStr = (row[dateIdx] || '').trim();
+      
+      // Skip empty rows
+      if (!location || !dateStr) continue;
+      
+      // Filter out ZIP codes if enabled
+      if (containsZipCodes && isZipCode(location)) continue;
+      
+      // Validate and parse date
+      const parsedDate = parseDate(dateStr, dateFormat);
+      if (!parsedDate || isNaN(parsedDate.getTime())) {
+        dateIssues.push(`Row ${i + 2}: "${dateStr}" doesn't match format ${dateFormat}`);
+        continue;
+      }
+      
+      // Convert outcome to number
+      const outcome = parseFloat(outcomeStr);
+      if (isNaN(outcome)) {
+        console.warn(`Row ${i + 2}: Non-numeric outcome value "${outcomeStr}", setting to 0`);
+      }
+      
+      const standardizedDate = standardizeDate(dateStr, dateFormat);
+      
+      validRows.push({
+        location,
+        Y: isNaN(outcome) ? 0 : outcome,
+        date: standardizedDate,
+        originalDate: dateStr
+      });
+    }
+
+    if (dateIssues.length > 5) { // Only fail if many date issues
+      const maxErrors = 5;
+      const errorMessage = `Date format issues found:\n${dateIssues.slice(0, maxErrors).join('\n')}${dateIssues.length > maxErrors ? `\n... and ${dateIssues.length - maxErrors} more` : ''}`;
+      throw new Error(errorMessage);
+    }
+
+    if (validRows.length === 0) {
+      throw new Error('No valid data rows found after processing.');
+    }
+
+    // Convert dates to time periods
+    const sortedDates = [...new Set(validRows.map(row => row.date))].sort();
+    const dateToTime = {};
+    sortedDates.forEach((date, index) => {
+      dateToTime[date] = index + 1;
+    });
+
+    const processedRows = validRows.map(row => ({
+      location: row.location,
+      Y: row.Y,
+      date: row.date,
+      time: dateToTime[row.date]
+    }));
+
+    // Debug logging to understand data types
+    console.log('[processDataForAPI] Data type analysis:', {
+      sampleProcessedRow: processedRows[0],
+      yValueTypes: processedRows.slice(0, 5).map((row, i) => `Row ${i}: ${typeof row.Y} - ${row.Y}`),
+      allYNumeric: processedRows.every(row => typeof row.Y === 'number' && !isNaN(row.Y)),
+      totalRows: processedRows.length
+    });
+
+    return {
+      processedRows,
+      summary: {
+        totalRows: processedRows.length,
+        uniqueLocations: [...new Set(processedRows.map(r => r.location))].length,
+        dateRange: sortedDates.length > 0 ? `${sortedDates[0]} to ${sortedDates[sortedDates.length - 1]}` : 'None',
+        timeRange: `1 to ${sortedDates.length}`
+      }
+    };
+  };
+
+  // Analysis state - managed within step 2 (kept for future use)
+  const [selectedMarketCombo] = useState(null);
+  const [analysisParams] = useState(null);
+  const [cachedAnalysisResults, setCachedAnalysisResults] = useState(null);
+
   const canProceed = !!fileData;
 
   // Navigation functions
   const goToStep = (step) => {
     if (step === 1) {
       setCurrentStep(1);
-    } else if (step === 2 && processedData) {
+    } else if (step === 2 && processedData && isDataIngested) {
       setCurrentStep(2);
     }
   };
@@ -49,10 +226,20 @@ const ExperimentSetup = ({ onBack }) => {
     }
   };
 
-  // Pre-call market selection when fileData is processed
+
+
+  // Clear analysis cache when data or market combo changes
+  useEffect(() => {
+    if (cachedAnalysisResults) {
+      console.log('[ExperimentSetup] Data or configuration changed, clearing analysis cache');
+      setCachedAnalysisResults(null);
+    }
+  }, [processedData, selectedMarketCombo, analysisParams]);
+
+  // Pre-call market selection when data is ingested (not just when file is uploaded)
   useEffect(() => {
     const preCallMarketSelection = async () => {
-      if (!fileData || !fileData.rows || fileData.rows.length === 0) {
+      if (!fileData || !fileData.rows || fileData.rows.length === 0 || !isDataIngested) {
         setIsPreCallingMarketSelection(false);
         return;
       }
@@ -79,57 +266,22 @@ const ExperimentSetup = ({ onBack }) => {
         }, 3000); // Update every 3 seconds
         
         // Process data locally first
-        const headers = (fileData.headers || []).map(h => String(h).trim().toLowerCase());
-        const toKey = (s) => String(s || '').trim().toLowerCase();
-        const findIdx = (name, fallbacks = []) => {
-          const targets = [name, ...fallbacks].map(toKey);
-          for (let t of targets) {
-            const idx = headers.indexOf(t);
-            if (idx !== -1) return idx;
-          }
-          return -1;
-        };
-
-        const locIdx = findIdx(locationColumn, ['city', 'location_id', 'geo', 'market']);
-        const yIdx = findIdx(outcomeColumn, ['y', 'outcome', 'app_download', 'revenue', 'sales']);
-        const dateIdx = findIdx(dateColumn, ['date', 'time', 'timestamp', 'day']);
-
-        if (locIdx === -1 || yIdx === -1 || dateIdx === -1) {
-          console.log('[CreateExperiment] Cannot pre-call market selection: missing required columns');
+        let processedRows, summary;
+        try {
+          const result = processDataForAPI(fileData, {
+            locationColumn, outcomeColumn, dateColumn, dateFormat, containsZipCodes
+          });
+          
+          ({ processedRows, summary } = result);
+          
+          console.log('[CreateExperiment] Data transformation for pre-call:', {
+            ...summary,
+            sampleRow: processedRows[0]
+          });
+        } catch (dataError) {
+          console.log('[CreateExperiment] Cannot pre-call market selection: data processing failed -', dataError.message);
           return;
         }
-
-                 // Transform data to standard format locally
-         const rawRows = fileData.rows.map(row => ({
-           location: (row[locIdx] || '').trim().toLowerCase(),
-           Y: parseFloat(row[yIdx]) || 0,
-           date: (row[dateIdx] || '').trim()
-         })).filter(row => row.location && row.date);
-
-         if (rawRows.length === 0) {
-           console.log('[CreateExperiment] Cannot pre-call market selection: no valid data rows');
-           return;
-         }
-
-         // Convert dates to time periods (required by GeoLiftMarketSelection)
-         const sortedDates = [...new Set(rawRows.map(row => row.date))].sort();
-         const dateToTime = {};
-         sortedDates.forEach((date, index) => {
-           dateToTime[date] = index + 1;
-         });
-
-         const processedRows = rawRows.map(row => ({
-           location: row.location,
-           Y: row.Y,
-           date: row.date,
-           time: dateToTime[row.date]
-         }));
-
-         console.log('[CreateExperiment] Data transformation:', {
-           totalRows: processedRows.length,
-           sampleRow: processedRows[0],
-           dateMapping: `${sortedDates.length} unique dates mapped to time 1-${sortedDates.length}`
-         });
 
         // Call market selection with default parameters
         const defaultParams = {
@@ -177,24 +329,16 @@ const ExperimentSetup = ({ onBack }) => {
     };
 
     preCallMarketSelection();
-  }, [fileData, locationColumn, outcomeColumn, dateColumn]); // Re-run when file or column mappings change
+  }, [fileData, locationColumn, outcomeColumn, dateColumn, isDataIngested]); // Re-run when data is ingested or column mappings change
 
   const convertToCsvString = (data) => {
     if (!data || !data.rows) return '';
     const headers = (data.headers || []).map(h => String(h).trim().toLowerCase());
-    const toKey = (s) => String(s || '').trim().toLowerCase();
-    const findIdx = (name, fallbacks = []) => {
-      const targets = [name, ...fallbacks].map(toKey);
-      for (let t of targets) {
-        const idx = headers.indexOf(t);
-        if (idx !== -1) return idx;
-      }
-      return -1;
-    };
-
-    const locIdx = findIdx(locationColumn, ['city', 'location_id', 'geo', 'market']);
-    const yIdx = findIdx(outcomeColumn, ['y', 'outcome', 'app_download', 'revenue', 'sales']);
-    const dateIdx = findIdx(dateColumn, ['date', 'time', 'timestamp', 'day']);
+    
+    // Use exact user-mapped column names (no fallbacks)
+    const locIdx = headers.indexOf(locationColumn.trim().toLowerCase());
+    const yIdx = headers.indexOf(outcomeColumn.trim().toLowerCase());
+    const dateIdx = headers.indexOf(dateColumn.trim().toLowerCase());
 
     if (locIdx === -1 || yIdx === -1 || dateIdx === -1) return '';
 
@@ -216,54 +360,33 @@ const ExperimentSetup = ({ onBack }) => {
       
       // Process data locally for Create Experiment flow
       const headers = (fileData.headers || []).map(h => String(h).trim().toLowerCase());
-      const toKey = (s) => String(s || '').trim().toLowerCase();
-      const findIdx = (name, fallbacks = []) => {
-        const targets = [name, ...fallbacks].map(toKey);
-        for (let t of targets) {
-          const idx = headers.indexOf(t);
-          if (idx !== -1) return idx;
-        }
-        return -1;
-      };
-
-      const locIdx = findIdx(locationColumn, ['city', 'location_id', 'geo', 'market']);
-      const yIdx = findIdx(outcomeColumn, ['y', 'outcome', 'app_download', 'revenue', 'sales']);
-      const dateIdx = findIdx(dateColumn, ['date', 'time', 'timestamp', 'day']);
+      
+      // Use exact user-mapped column names (no fallbacks)
+      const locIdx = headers.indexOf(locationColumn.trim().toLowerCase());
+      const yIdx = headers.indexOf(outcomeColumn.trim().toLowerCase());
+      const dateIdx = headers.indexOf(dateColumn.trim().toLowerCase());
 
       if (locIdx === -1 || yIdx === -1 || dateIdx === -1) {
         throw new Error('Unable to map required columns. Please check your column mappings.');
       }
 
-      // Transform data to standard format locally
-      const rawRows = fileData.rows.map(row => ({
-        location: (row[locIdx] || '').trim().toLowerCase(),
-        Y: parseFloat(row[yIdx]) || 0,
-        date: (row[dateIdx] || '').trim()
-      })).filter(row => row.location && row.date);
-
-      if (rawRows.length === 0) {
-        throw new Error('No valid data rows found after processing.');
-      }
-
-      // Convert dates to time periods (required by GeoLiftMarketSelection)
-      const sortedDates = [...new Set(rawRows.map(row => row.date))].sort();
-      const dateToTime = {};
-      sortedDates.forEach((date, index) => {
-        dateToTime[date] = index + 1;
+      // Use shared data processing function
+      const result = processDataForAPI(fileData, {
+        locationColumn, outcomeColumn, dateColumn, dateFormat, containsZipCodes
       });
-
-      const processedRows = rawRows.map(row => ({
-        location: row.location,
-        Y: row.Y,
-        date: row.date,
-        time: dateToTime[row.date]
-      }));
+      
+      const { processedRows, summary } = result;
 
       console.log('[CreateExperiment] Processed data locally:', {
-        totalRows: processedRows.length,
+        ...summary,
         sampleRow: processedRows[0],
-        columns: { locationColumn, outcomeColumn, dateColumn },
-        dateMapping: `${sortedDates.length} unique dates mapped to time 1-${sortedDates.length}`
+        columns: { locationColumn, outcomeColumn, dateColumn, dateFormat },
+        dataTypes: {
+          location: typeof processedRows[0]?.location,
+          Y: typeof processedRows[0]?.Y,
+          date: typeof processedRows[0]?.date,
+          time: typeof processedRows[0]?.time
+        }
       });
 
       setProcessedData(processedRows);
@@ -297,7 +420,7 @@ const ExperimentSetup = ({ onBack }) => {
             style={{ cursor: processedData ? 'pointer' : 'not-allowed' }}
           >
             <div className="step-circle">2</div>
-            <div className="step-label">Analyze</div>
+            <div className="step-label">Configure</div>
           </div>
         </div>
           </div>
@@ -333,13 +456,15 @@ const ExperimentSetup = ({ onBack }) => {
               setSelectedTestLocations={setSelectedTestLocations}
               testLocations={testLocations}
               setTestLocations={setTestLocations}
+              isDataIngested={isDataIngested}
+              setIsDataIngested={setIsDataIngested}
             />
 
             {uploadError && <div className="upload-error">{uploadError}</div>}
             <div className="step-actions">
               <button
-                className={`ingest-next-btn ${canProceed ? '' : 'disabled'}`}
-                disabled={!canProceed}
+                className={`ingest-next-btn ${(canProceed && isDataIngested) ? '' : 'disabled'}`}
+                disabled={!canProceed || !isDataIngested}
                 onClick={handleIngestNext}
               >
                 Next
@@ -368,7 +493,6 @@ const ExperimentSetup = ({ onBack }) => {
             />
           </>
         )}
-
 
       </div>
     </div>
