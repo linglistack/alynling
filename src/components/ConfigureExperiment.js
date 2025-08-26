@@ -304,7 +304,7 @@ const ConfigureExperiment = ({
   const budget = useMemo(() => {
     const firstCell = cells[0];
     const n = Number(firstCell?.advanced?.testAmount);
-    return Number.isFinite(n) && n > 0 ? n : 100000;
+    return Number.isFinite(n) && n > 0 ? n : 150000;
   }, [cells]);
 
   const numTestGeos = useMemo(() => {

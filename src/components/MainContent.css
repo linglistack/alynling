@@ -83,7 +83,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  /* background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); */
+  background: grey;
   color: white;
   padding: 12px 24px;
   border-radius: 8px;

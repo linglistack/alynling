@@ -183,7 +183,7 @@ const MainContent = ({ onCreateExperiment, onAnalyzeExperiment, onExperimentClic
             <Plus size={16} />
             Create Experiment
           </button>
-          <button className="analyze-button" onClick={onAnalyzeExperiment}>
+          <button className="analyze-button" onClick={onAnalyzeExperiment} disabled={true}>
             <BarChart3 size={16} />
             Analyze Experiment
           </button>

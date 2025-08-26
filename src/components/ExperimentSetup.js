@@ -326,7 +326,8 @@ const ExperimentSetup = ({ onBack }) => {
           effectSize: [0, 0.05, 0.1, 0.15, 0.2, 0.25],
           lookbackWindow: 1,
           cpic: 1,
-          alpha: 0.1
+          alpha: 0.1,
+          budget: 150000
         };
         
         const resp = await geoliftAPI.marketSelection(geoDataResult.data, defaultParams);
@@ -348,7 +349,8 @@ const ExperimentSetup = ({ onBack }) => {
               lookbackWindow: defaultParams.lookbackWindow,
               cpic: defaultParams.cpic,
               alpha: defaultParams.alpha,
-              dataLength: geoDataResult.data.length
+              dataLength: geoDataResult.data.length,
+              budget: defaultParams.budget
             }
           });
           console.log('[CreateExperiment] Market selection pre-cached successfully');
