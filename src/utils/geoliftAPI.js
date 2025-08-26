@@ -209,6 +209,126 @@ export const geoliftAPI = {
       })
     });
   },
+
+  /**
+   * Call GeoDataRead to process data and create time mapping
+   */
+  async geoDataRead(data, options = {}) {
+    const {
+      date_id = "date",
+      location_id = "location", 
+      Y_id = "Y",
+      format = "yyyy-mm-dd"
+    } = options;
+
+    console.log('[geoliftAPI] GeoDataRead request:', {
+      dataRows: Array.isArray(data) ? data.length : 'unknown',
+      date_id,
+      location_id,
+      Y_id,
+      format
+    });
+
+    return apiRequest('/api/geolift/geodataread', {
+      method: 'POST',
+      body: JSON.stringify({
+        data,
+        date_id,
+        location_id,
+        Y_id,
+        format
+      })
+    });
+  },
+
+  /**
+   * Run full GeoLift analysis with treatment parameters
+   */
+  async geoLift(data, options = {}) {
+    const {
+      locations = [],
+      treatmentStartDate = null,
+      treatmentEndDate = null,
+      treatmentStartTime = null,
+      treatmentEndTime = null,
+      alpha = 0.05,
+      fixedEffects = true,
+      model = "best"
+    } = options;
+
+    console.log('[geoliftAPI] GeoLift analysis request:', {
+      dataRows: Array.isArray(data) ? data.length : 'unknown',
+      locations,
+      treatmentStartDate,
+      treatmentEndDate,
+      treatmentStartTime,
+      treatmentEndTime,
+      alpha,
+      fixedEffects,
+      model
+    });
+
+    const requestBody = {
+      data,
+      locations,
+      alpha,
+      fixed_effects: fixedEffects,
+      model
+    };
+
+    // Support both date and time parameters for backward compatibility
+    if (treatmentStartDate && treatmentEndDate) {
+      requestBody.treatment_start_date = treatmentStartDate;
+      requestBody.treatment_end_date = treatmentEndDate;
+    } else if (treatmentStartTime && treatmentEndTime) {
+      requestBody.treatment_start_time = treatmentStartTime;
+      requestBody.treatment_end_time = treatmentEndTime;
+    } else {
+      throw new Error('Either treatment dates or treatment times must be provided');
+    }
+
+    return apiRequest('/api/geolift/analysis', {
+      method: 'POST',
+      body: JSON.stringify(requestBody)
+    });
+  },
+
+  /**
+   * Run GeoLift analysis using pre-processed GeoDataRead response
+   */
+  async geoLiftWithGeoData(geoDataReadResponse, options = {}) {
+    const {
+      locations = [],
+      treatmentStartTime,
+      treatmentEndTime,
+      alpha = 0.05,
+      fixedEffects = true,
+      model = "best"
+    } = options;
+
+    console.log('[geoliftAPI] GeoLift with GeoData analysis request:', {
+      geoDataRows: geoDataReadResponse?.data ? geoDataReadResponse.data.length : 'unknown',
+      locations,
+      treatmentStartTime,
+      treatmentEndTime,
+      alpha,
+      fixedEffects,
+      model
+    });
+
+    return apiRequest('/api/geolift/analysis-with-geodata', {
+      method: 'POST',
+      body: JSON.stringify({
+        geoDataReadResponse,
+        locations,
+        treatment_start_time: treatmentStartTime,
+        treatment_end_time: treatmentEndTime,
+        alpha,
+        fixed_effects: fixedEffects,
+        model
+      })
+    });
+  },
 };
 
 /**

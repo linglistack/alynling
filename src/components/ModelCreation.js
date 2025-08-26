@@ -274,7 +274,6 @@ const ModelCreation = ({ onBack }) => {
 
             {inputMethod === 'upload' && (
               <div className="upload-section">
-                <h3>Upload Data</h3>
                 <div className="upload-area">
                   <input 
                     type="file" 

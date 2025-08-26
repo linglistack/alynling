@@ -1,0 +1,447 @@
+/* Treatment Analysis Component Styles */
+.treatment-analysis {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px;
+    min-height: 100vh;
+}
+
+.treatment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 16px;
+}
+
+.header-content {
+    flex: 1;
+}
+
+.page-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 8px 0;
+}
+
+.page-subtitle {
+    font-size: 16px;
+    color: #6b7280;
+    margin: 0;
+}
+
+.back-button {
+    background: #f8fafc;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.back-button:hover {
+    background: #f1f5f9;
+    border-color: #9ca3af;
+    color: #111827;
+}
+
+
+
+/* Split Layout */
+.treatment-split {
+    display: grid;
+    grid-template-columns: 40% 60%;
+    gap: 16px;
+    align-items: start;
+    min-height: 600px;
+}
+
+.treatment-left {
+    min-width: 0;
+}
+
+.treatment-right {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Configuration Cards */
+.treatment-config {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.config-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.config-section-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 16px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+/* Selected Market Summary */
+.selected-market-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.market-info-item {
+    color: #475569;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.market-info-item strong {
+    color: #334155;
+    font-weight: 600;
+}
+
+/* Configuration Form */
+.config-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.config-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.config-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+}
+
+.config-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    background: white;
+}
+
+.config-input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Location Selection Input */
+.location-selection-input {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+}
+
+.location-selection-input:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.location-summary {
+    color: #374151;
+    flex: 1;
+}
+
+.location-edit-icon {
+    font-size: 16px;
+    opacity: 0.6;
+    margin-left: 8px;
+}
+
+/* Actions */
+.config-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 16px;
+}
+
+.primary-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.primary-btn:hover:not(.disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.primary-btn.disabled,
+.primary-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Results Card */
+.results-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.results-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 16px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f3f4f6;
+    position: relative;
+}
+
+.results-title::after {
+    position: absolute;
+    right: 0;
+    top: 0;
+    background: #f3f4f6;
+    color: #6b7280;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+
+
+.results-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.results-loading,
+.results-error,
+.results-placeholder {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 60px 20px;
+    color: #6b7280;
+    font-size: 16px;
+    text-align: center;
+    flex: 1;
+}
+
+.results-error {
+    color: #dc2626;
+}
+
+.loading-text {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #374151;
+}
+
+.loading-subtitle {
+    font-size: 13px;
+    color: #9ca3af;
+    font-style: italic;
+}
+
+/* Analysis Results Content */
+.analysis-results-content {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    flex: 1;
+    width: 100%;
+}
+
+/* Test Statistics Section */
+.test-statistics-section {
+    background: #1e293b;
+    border-radius: 8px;
+    padding: 4px;
+}
+
+.test-statistics {
+    background-color: #2c3e50;
+    color: #ecf0f1;
+    font-family: 'Courier New', 'Monaco', monospace;
+    font-size: 14px;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.stats-header {
+    margin-bottom: 15px;
+}
+
+.stats-title {
+    color: #3498db;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 2px;
+}
+
+.stats-border {
+    color: #3498db;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.stats-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.stat-label {
+    color: #ecf0f1;
+    font-weight: normal;
+}
+
+.stat-value {
+    color: #f39c12;
+    font-weight: bold;
+    text-align: right;
+}
+
+/* Analysis Charts */
+.analysis-charts {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    flex: 1;
+}
+
+.chart-container {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.chart-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 12px 0;
+    text-align: center;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .treatment-split {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .treatment-analysis {
+        padding: 16px;
+    }
+
+    .treatment-analysis-header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 768px) {
+    .treatment-analysis-header h2 {
+        font-size: 20px;
+    }
+
+    .config-card {
+        padding: 16px;
+    }
+
+    .results-card {
+        padding: 16px;
+    }
+}
+
+/* Chart Styles */
+.analysis-charts {
+    width: 100%;
+    margin-top: 24px;
+}
+
+.chart-container {
+    width: 100%;
+    max-width: none;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-sizing: border-box;
+}
+
+.chart-container>div {
+    width: 100% !important;
+    max-width: none !important;
+}
+
+/* Ensure Highcharts container takes full width */
+.chart-container .highcharts-container {
+    width: 100% !important;
+}
+
+.chart-container svg {
+    width: 100% !important;
+}
+
+.chart-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 16px;
+    text-align: center;
+}

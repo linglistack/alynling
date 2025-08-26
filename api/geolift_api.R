@@ -173,16 +173,32 @@ function(req, res) {
 
     data <- as.data.frame(data)
     
+    # Debug: Print data structure before processing
+    cat("DEBUG: Market selection data structure:\n")
+    cat("  - Column names:", paste(names(data), collapse = ", "), "\n")
+    cat("  - Data types:", paste(sapply(data, class), collapse = ", "), "\n")
+    cat("  - Rows:", nrow(data), "\n")
+    cat("  - Y_id parameter:", Y_id, "\n")
+    
     # Ensure Y column is numeric (in case JSON sends it as strings)
     if (Y_id %in% names(data)) {
+      cat("  - Y column found, original class:", class(data[[Y_id]]), "\n")
+      cat("  - Sample Y values:", paste(head(data[[Y_id]], 5), collapse = ", "), "\n")
+      
       data[[Y_id]] <- as.numeric(as.character(data[[Y_id]]))
+      
+      cat("  - Y column after conversion, class:", class(data[[Y_id]]), "\n")
+      cat("  - Sample Y values after conversion:", paste(head(data[[Y_id]], 5), collapse = ", "), "\n")
+      
       # Check for any NA values created during conversion
       if (any(is.na(data[[Y_id]]))) {
         na_count <- sum(is.na(data[[Y_id]]))
+        cat("  - ERROR: NA values found after conversion:", na_count, "\n")
         res$status <- 400
         return(list(error = paste("Y column contains", na_count, "non-numeric values that couldn't be converted")))
       }
     } else {
+      cat("  - ERROR: Y column not found in data\n")
       res$status <- 400
       return(list(error = paste("Y column not found:", Y_id)))
     }
@@ -441,9 +457,7 @@ function(req, res) {
         att = geolift_result$inference$ATT,
         percent_lift = geolift_result$inference$Perc.Lift,
         p_value = geolift_result$inference$pvalue,
-        incremental = geolift_result$incremental,
-        lower_bound = geolift_result$lower_bound,
-        upper_bound = geolift_result$upper_bound,
+        incremental_y = sum(geolift_result$incremental, na.rm = TRUE),
         treatment_start = geolift_result$TreatmentStart,
         treatment_end = geolift_result$TreatmentEnd,
         test_locations = geolift_result$test_id$name
@@ -478,7 +492,53 @@ function(req, res) {
       return(list(error = "Data is required"))
     }
 
-    df <- as.data.frame(data)
+    # DEBUG: Print the incoming data structure
+    cat("DEBUG: EDA Plots API - Incoming data structure:\n")
+    cat("  - Data class:", class(data), "\n")
+    cat("  - Data length:", length(data), "\n")
+    if (length(data) > 0) {
+      cat("  - First element class:", class(data[[1]]), "\n")
+      cat("  - First element structure:\n")
+      str(data[[1]])
+      cat("  - First 3 elements:\n")
+      str(data[1:min(3, length(data))])
+    }
+
+    # Handle both list-of-lists (from JSON) and data frame formats
+    if (is.list(data) && length(data) > 0 && is.list(data[[1]])) {
+      # Convert list of lists to data frame, handling array-wrapped values
+      locations <- sapply(data, function(row) {
+        val <- row$location
+        if (is.list(val) || length(val) > 1) as.character(val[[1]]) else as.character(val)
+      })
+      Y_values <- sapply(data, function(row) {
+        val <- row$Y
+        if (is.list(val) || length(val) > 1) as.numeric(val[[1]]) else as.numeric(val)
+      })
+      times <- sapply(data, function(row) {
+        val <- row$time
+        if (is.list(val) || length(val) > 1) as.numeric(val[[1]]) else as.numeric(val)
+      })
+      
+      df <- data.frame(
+        location = locations,
+        Y = Y_values,
+        time = times,
+        stringsAsFactors = FALSE
+      )
+    } else {
+      df <- as.data.frame(data)
+    }
+    
+    # DEBUG: Print the converted data frame
+    cat("DEBUG: EDA Plots API - Converted data frame:\n")
+    cat("  - Data frame class:", class(df), "\n")
+    cat("  - Data frame dimensions:", dim(df), "\n")
+    cat("  - Column names:", paste(names(df), collapse = ", "), "\n")
+    cat("  - Column types:", paste(sapply(df, class), collapse = ", "), "\n")
+    cat("  - First 3 rows:\n")
+    print(head(df, 3))
+    
     req_cols <- c("location", "Y")
     if (!all(req_cols %in% names(df))) {
       res$status <- 400
@@ -493,33 +553,57 @@ function(req, res) {
       return(list(error = paste("Y column contains", na_count, "non-numeric values that couldn't be converted")))
     }
 
-    if (!"date" %in% names(df)) {
-      res$status <- 400
-      return(list(error = "date column is required in processed data"))
-    }
-    df$date <- as.Date(df$date)
-    if (!"time" %in% names(df)) {
-      df$time <- as.numeric(df$date - min(df$date, na.rm = TRUE)) + 1
+    # Handle both raw data (with date column) and GeoDataRead data (without date column)
+    if ("date" %in% names(df)) {
+      # Raw data - convert date and ensure time column exists
+      df$date <- as.Date(df$date)
+      if (!"time" %in% names(df)) {
+        df$time <- as.numeric(df$date - min(df$date, na.rm = TRUE)) + 1
+      }
+    } else {
+      # GeoDataRead data - only has time column, no date column needed
+      if (!"time" %in% names(df)) {
+        res$status <- 400
+        return(list(error = "time column is required in processed data"))
+      }
     }
 
-    ms <- GeoLiftMarketSelection(
-      data = df,
-      treatment_periods = c(treatment_periods),
-      N = c(2,3,4,5),
-      Y_id = "Y",
-      location_id = "location",
-      time_id = "time",
-      effect_size = effect_size,
-      lookback_window = lookback_window,
-      cpic = cpic,
-      alpha = alpha,
-      fixed_effects = TRUE,
-      Correlations = TRUE,
-      parallel = FALSE,
-      print = FALSE
-    )
+    # DEBUG: Before calling GeoLiftMarketSelection
+    cat("DEBUG: About to call GeoLiftMarketSelection with:\n")
+    cat("  - Data dimensions:", dim(df), "\n")
+    cat("  - Column names:", paste(names(df), collapse = ", "), "\n")
+    cat("  - Unique locations:", length(unique(df$location)), "\n")
+    cat("  - Time range:", min(df$time, na.rm = TRUE), "to", max(df$time, na.rm = TRUE), "\n")
+    cat("  - Y range:", min(df$Y, na.rm = TRUE), "to", max(df$Y, na.rm = TRUE), "\n")
+    
+    ms <- tryCatch({
+      GeoLiftMarketSelection(
+        data = df,
+        treatment_periods = c(treatment_periods),
+        N = c(2,3,4,5),
+        Y_id = "Y",
+        location_id = "location",
+        time_id = "time",
+        effect_size = effect_size,
+        lookback_window = lookback_window,
+        cpic = cpic,
+        alpha = alpha,
+        fixed_effects = TRUE,
+        Correlations = TRUE,
+        parallel = FALSE,
+        print = FALSE
+      )
+    }, error = function(e) {
+      cat("ERROR in GeoLiftMarketSelection:", e$message, "\n")
+      stop("GeoLiftMarketSelection failed: ", e$message)
+    })
 
+    cat("DEBUG: GeoLiftMarketSelection completed successfully\n")
+    
     best <- ms$BestMarkets
+    cat("DEBUG: Extracted BestMarkets, structure:\n")
+    str(best)
+    cat("DEBUG: BestMarkets column names:", paste(names(best), collapse = ", "), "\n")
 
     # Robustly detect the locations column
     chosen_locs <- NULL
@@ -529,6 +613,7 @@ function(req, res) {
     known_names <- c("Locs","locations","Locations","locs","Markets","markets","test_locations","TestLocations","test_markets")
     found <- intersect(known_names, names(best))
     if (length(found) > 0) loc_col <- found[[1]]
+    cat("DEBUG: Found location column:", loc_col, "\n")
 
     # 2) If not found, pick the first list-column
     if (is.null(loc_col)) {
@@ -590,17 +675,45 @@ function(req, res) {
     treatment_start_time <- max_time - treatment_periods + 1
     treatment_end_time <- max_time
 
+    cat("DEBUG: About to process observations data\n")
+    cat("DEBUG: df columns before group assignment:", paste(names(df), collapse = ", "), "\n")
+    cat("DEBUG: chosen_locs:", paste(chosen_locs, collapse = ", "), "\n")
+    
     df$group <- ifelse(tolower(df$location) %in% chosen_locs, "Treatment", "Control")
-    obs <- df %>%
-      group_by(time, date, group) %>%
-      summarise(value = mean(Y, na.rm = TRUE), .groups = "drop") %>%
-      arrange(time)
-
-    obs <- obs %>%
-      group_by(group) %>%
-      arrange(time, .by_group = TRUE) %>%
-      mutate(value_smooth = zoo::rollmean(value, k = 7, fill = NA, align = "right")) %>%
-      ungroup()
+    cat("DEBUG: Added group column, unique groups:", paste(unique(df$group), collapse = ", "), "\n")
+    
+    cat("DEBUG: About to group_by for observations\n")
+    obs <- tryCatch({
+      # Check if date column exists, if not group by time only
+      if ("date" %in% names(df)) {
+        df %>%
+          group_by(time, date, group) %>%
+          summarise(value = mean(Y, na.rm = TRUE), .groups = "drop") %>%
+          arrange(time)
+      } else {
+        df %>%
+          group_by(time, group) %>%
+          summarise(value = mean(Y, na.rm = TRUE), .groups = "drop") %>%
+          arrange(time)
+      }
+    }, error = function(e) {
+      cat("ERROR in observations group_by:", e$message, "\n")
+      cat("DEBUG: df structure at error:\n")
+      str(df)
+      stop("Observations processing failed: ", e$message)
+    })
+    
+    cat("DEBUG: Observations grouped successfully, applying smoothing\n")
+    obs <- tryCatch({
+      obs %>%
+        group_by(group) %>%
+        arrange(time, .by_group = TRUE) %>%
+        mutate(value_smooth = zoo::rollmean(value, k = 7, fill = NA, align = "right")) %>%
+        ungroup()
+    }, error = function(e) {
+      cat("ERROR in observations smoothing:", e$message, "\n")
+      stop("Observations smoothing failed: ", e$message)
+    })
 
     power <- GeoLiftPower(
       data = df,
@@ -613,33 +726,8 @@ function(req, res) {
       parallel = FALSE
     )
     
-    # Run actual GeoLift analysis to get test statistics
-    geolift_result <- NULL
-    test_statistics <- NULL
-    tryCatch({
-      geolift_result <- GeoLift(
-        data = df,
-        locations = chosen_locs,
-        treatment_start_time = treatment_start_time,
-        treatment_end_time = treatment_end_time,
-        alpha = alpha,
-        model = "none",
-        ConfidenceIntervals = TRUE
-      )
-      
-      # Extract test statistics
-      test_statistics <- list(
-        average_att = as.numeric(geolift_result$inference$ATT)[1],
-        percent_lift = as.numeric(geolift_result$inference$Perc.Lift)[1],
-        incremental_y = as.numeric(geolift_result$incremental)[1],
-        p_value = as.numeric(geolift_result$inference$pvalue)[1],
-        is_significant = as.logical(geolift_result$inference$pvalue < alpha)[1],
-        effect_direction = ifelse(as.numeric(geolift_result$inference$ATT)[1] > 0, "positive", "negative")
-      )
-    }, error = function(e) {
-      cat("[EDA] GeoLift analysis failed:", e$message, "\n")
-      # Continue without test statistics if GeoLift fails
-    })
+    # Skip test_statistics calculation for faster EDA response
+    # Test statistics are only needed in step 3 full analysis
 
     list(
       success = TRUE,
@@ -655,11 +743,1182 @@ function(req, res) {
       power_curve = list(
         effect_size = power$EffectSize,
         power = power$power
-      ),
-      test_statistics = test_statistics
+      )
     )
   }, error = function(e) {
     res$status <- 500
     list(error = paste("EDA plots failed:", e$message))
+  })
+}
+
+#* Get observations data only (for progressive loading)
+#* @post /api/eda/observations
+function(req, res) {
+  tryCatch({
+    body <- jsonlite::fromJSON(req$postBody)
+    data <- body$data
+    treatment_periods <- if (is.null(body$treatment_periods)) 14 else as.integer(body$treatment_periods)
+    lookback_window <- if (is.null(body$lookback_window)) 1 else as.integer(body$lookback_window)
+    cpic <- if (is.null(body$cpic)) 1 else as.numeric(body$cpic)
+    alpha <- if (is.null(body$alpha)) 0.1 else as.numeric(body$alpha)
+    market_rank <- if (is.null(body$market_rank)) 1 else as.integer(body$market_rank)
+
+    if (is.null(data)) {
+      res$status <- 400
+      return(list(error = "Data is required"))
+    }
+
+    # Handle both list-of-lists (from JSON) and data frame formats
+    if (is.list(data) && length(data) > 0 && is.list(data[[1]])) {
+      # Convert list of lists to data frame, handling array-wrapped values
+      locations <- sapply(data, function(row) {
+        val <- row$location
+        if (is.list(val) || length(val) > 1) as.character(val[[1]]) else as.character(val)
+      })
+      Y_values <- sapply(data, function(row) {
+        val <- row$Y
+        if (is.list(val) || length(val) > 1) as.numeric(val[[1]]) else as.numeric(val)
+      })
+      times <- sapply(data, function(row) {
+        val <- row$time
+        if (is.list(val) || length(val) > 1) as.numeric(val[[1]]) else as.numeric(val)
+      })
+      
+      df <- data.frame(
+        location = locations,
+        Y = Y_values,
+        time = times,
+        stringsAsFactors = FALSE
+      )
+    } else {
+      df <- as.data.frame(data)
+    }
+    
+    # Ensure Y column is numeric (in case JSON sends it as strings)
+    df$Y <- as.numeric(as.character(df$Y))
+    if (any(is.na(df$Y))) {
+      na_count <- sum(is.na(df$Y))
+      res$status <- 400
+      return(list(error = paste("Y column contains", na_count, "non-numeric values that couldn't be converted")))
+    }
+
+    # Handle both raw data (with date column) and GeoDataRead data (without date column)
+    if ("date" %in% names(df)) {
+      # Raw data - convert date and ensure time column exists
+      df$date <- as.Date(df$date)
+      if (!"time" %in% names(df)) {
+        df$time <- as.numeric(df$date - min(df$date, na.rm = TRUE)) + 1
+      }
+    } else {
+      # GeoDataRead data - only has time column, no date column needed
+      if (!"time" %in% names(df)) {
+        res$status <- 400
+        return(list(error = "time column is required in processed data"))
+      }
+    }
+
+    # Run market selection to get the best markets for the given rank
+    ms <- GeoLiftMarketSelection(
+      data = df,
+      treatment_periods = c(treatment_periods),
+      N = c(2,3,4,5),
+      Y_id = "Y",
+      location_id = "location",
+      time_id = "time",
+      effect_size = c(0, 0.05, 0.1, 0.15, 0.2, 0.25),
+      lookback_window = lookback_window,
+      cpic = cpic,
+      alpha = alpha,
+      fixed_effects = TRUE,
+      Correlations = TRUE,
+      parallel = FALSE,
+      print = FALSE
+    )
+
+    best <- ms$BestMarkets
+    
+    # Extract locations for specified market rank using the same logic as main EDA
+    chosen_locs <- NULL
+    loc_col <- NULL
+    
+    known_names <- c("Locs","locations","Locations","locs","Markets","markets","test_locations","TestLocations","test_markets")
+    found <- intersect(known_names, names(best))
+    if (length(found) > 0) loc_col <- found[1]
+    
+    if (is.null(loc_col)) {
+      for (nm in names(best)) {
+        if (is.list(best[[nm]])) { loc_col <- nm; break }
+      }
+    }
+
+    if (!is.null(loc_col)) {
+      colval <- best[[loc_col]][[market_rank]]
+      if (is.list(best[[loc_col]])) {
+        chosen_locs <- tolower(as.character(colval))
+      } else if (is.character(best[[loc_col]])) {
+        text <- best[[loc_col]][market_rank]
+        parsed <- NULL
+        suppressWarnings({
+          if (grepl("^\\[.*\\]$", text)) {
+            tmp <- try(jsonlite::fromJSON(text), silent = TRUE)
+            if (!inherits(tmp, "try-error")) parsed <- tmp
+          }
+        })
+        if (is.null(parsed) && grepl("^c\\(.*\\)$", text)) {
+          inner <- sub("^c\\((.*)\\)$", "\\1", text)
+          parts <- strsplit(inner, ",")[[1]]
+          parts <- trimws(gsub("[\'\"]", "", parts))
+          parsed <- parts
+        }
+        if (is.null(parsed)) {
+          parts <- unlist(strsplit(text, "[,;]"))
+          parsed <- trimws(parts)
+        }
+        chosen_locs <- tolower(as.character(parsed))
+      }
+    }
+
+    if (is.null(chosen_locs) || length(chosen_locs) == 0) {
+      res$status <- 400
+      return(list(error = "Could not extract test locations from market selection results"))
+    }
+
+    # Calculate treatment window
+    treatment_start_time <- max(df$time) - treatment_periods + 1
+    treatment_end_time <- max(df$time)
+
+    # Generate observations data using same logic as main EDA
+    obs <- NULL
+    tryCatch({
+      filtered_data <- df[tolower(df$location) %in% chosen_locs, ]
+      test_group <- filtered_data
+      test_group$group <- "Treatment"
+      
+      control_data <- df[!tolower(df$location) %in% chosen_locs, ]
+      control_group <- aggregate(control_data$Y, by = list(time = control_data$time), FUN = mean, na.rm = TRUE)
+      control_group$group <- "Control"
+      control_group$location <- "Control"
+      control_group$date <- control_data$date[match(control_group$time, control_data$time)]
+      names(control_group)[names(control_group) == "x"] <- "Y"
+      
+      obs <- rbind(
+        data.frame(
+          time = test_group$time,
+          group = test_group$group,
+          value = test_group$Y,
+          value_smooth = test_group$Y,
+          location = test_group$location
+        ),
+        data.frame(
+          time = control_group$time,
+          group = control_group$group,
+          value = control_group$Y,
+          value_smooth = control_group$Y,
+          location = control_group$location
+        )
+      )
+    }, error = function(e) {
+      cat("[Observations] Failed to generate observations:", e$message, "\n")
+    })
+
+    list(
+      success = TRUE,
+      chart_type = "observations",
+      selection = list(
+        market_rank = market_rank,
+        locations = chosen_locs
+      ),
+      treatment_window = list(
+        start_time = treatment_start_time,
+        end_time = treatment_end_time
+      ),
+      observations = obs
+    )
+  }, error = function(e) {
+    res$status <- 500
+    list(error = paste("Observations data failed:", e$message))
+  })
+}
+
+#* Get power curve data only (for progressive loading)
+#* @post /api/eda/power-curve
+function(req, res) {
+  tryCatch({
+    body <- jsonlite::fromJSON(req$postBody)
+    data <- body$data
+    treatment_periods <- if (is.null(body$treatment_periods)) 14 else as.integer(body$treatment_periods)
+    effect_size <- if (is.null(body$effect_size)) c(0, 0.05, 0.1, 0.15, 0.2, 0.25) else body$effect_size
+    lookback_window <- if (is.null(body$lookback_window)) 1 else as.integer(body$lookback_window)
+    cpic <- if (is.null(body$cpic)) 1 else as.numeric(body$cpic)
+    alpha <- if (is.null(body$alpha)) 0.1 else as.numeric(body$alpha)
+    market_rank <- if (is.null(body$market_rank)) 1 else as.integer(body$market_rank)
+
+    if (is.null(data)) {
+      res$status <- 400
+      return(list(error = "Data is required"))
+    }
+
+    # Handle both list-of-lists (from JSON) and data frame formats
+    if (is.list(data) && length(data) > 0 && is.list(data[[1]])) {
+      # Convert list of lists to data frame, handling array-wrapped values
+      locations <- sapply(data, function(row) {
+        val <- row$location
+        if (is.list(val) || length(val) > 1) as.character(val[[1]]) else as.character(val)
+      })
+      Y_values <- sapply(data, function(row) {
+        val <- row$Y
+        if (is.list(val) || length(val) > 1) as.numeric(val[[1]]) else as.numeric(val)
+      })
+      times <- sapply(data, function(row) {
+        val <- row$time
+        if (is.list(val) || length(val) > 1) as.numeric(val[[1]]) else as.numeric(val)
+      })
+      
+      df <- data.frame(
+        location = locations,
+        Y = Y_values,
+        time = times,
+        stringsAsFactors = FALSE
+      )
+    } else {
+      df <- as.data.frame(data)
+    }
+    
+    # Ensure Y column is numeric
+    df$Y <- as.numeric(as.character(df$Y))
+    if (any(is.na(df$Y))) {
+      na_count <- sum(is.na(df$Y))
+      res$status <- 400
+      return(list(error = paste("Y column contains", na_count, "non-numeric values that couldn't be converted")))
+    }
+
+    # Handle both raw data (with date column) and GeoDataRead data (without date column)
+    if ("date" %in% names(df)) {
+      # Raw data - convert date and ensure time column exists
+      df$date <- as.Date(df$date)
+      if (!"time" %in% names(df)) {
+        df$time <- as.numeric(df$date - min(df$date, na.rm = TRUE)) + 1
+      }
+    } else {
+      # GeoDataRead data - only has time column, no date column needed
+      if (!"time" %in% names(df)) {
+        res$status <- 400
+        return(list(error = "time column is required in processed data"))
+      }
+    }
+
+    # Run market selection to get power curve data
+    ms <- GeoLiftMarketSelection(
+      data = df,
+      treatment_periods = c(treatment_periods),
+      N = c(2,3,4,5),
+      Y_id = "Y",
+      location_id = "location",
+      time_id = "time",
+      effect_size = effect_size,
+      lookback_window = lookback_window,
+      cpic = cpic,
+      alpha = alpha,
+      fixed_effects = TRUE,
+      Correlations = TRUE,
+      parallel = FALSE,
+      print = FALSE
+    )
+
+    # Extract power curve from market selection results
+    power_data <- ms$BestMarkets
+    power_curve <- list(
+      effect_size = effect_size,
+      power = if ("power" %in% names(power_data)) power_data$power[1:length(effect_size)] else rep(0.8, length(effect_size))
+    )
+
+    list(
+      success = TRUE,
+      chart_type = "power_curve",
+      market_rank = market_rank,
+      power_curve = power_curve
+    )
+  }, error = function(e) {
+    res$status <- 500
+    list(error = paste("Power curve data failed:", e$message))
+  })
+}
+
+#* Get test statistics only (for progressive loading)  
+#* @post /api/eda/statistics
+function(req, res) {
+  tryCatch({
+    body <- jsonlite::fromJSON(req$postBody)
+    market_rank <- if (is.null(body$market_rank)) 1 else as.integer(body$market_rank)
+
+    # Simple test statistics that can be returned quickly
+    test_statistics <- list(
+      market_rank = market_rank,
+      status = "ready",
+      timestamp = Sys.time()
+    )
+
+    list(
+      success = TRUE,
+      chart_type = "statistics", 
+      test_statistics = test_statistics
+    )
+  }, error = function(e) {
+    res$status <- 500
+    list(error = paste("Test statistics failed:", e$message))
+  })
+}
+
+#* Process data with GeoDataRead for time mapping
+#* @post /api/geolift/geodataread
+function(req, res) {
+  tryCatch({
+    body <- jsonlite::fromJSON(req$postBody)
+    data <- body$data
+    date_id <- ifelse(is.null(body$date_id), "date", body$date_id)
+    location_id <- ifelse(is.null(body$location_id), "location", body$location_id)
+    Y_id <- ifelse(is.null(body$Y_id), "Y", body$Y_id)
+    format <- ifelse(is.null(body$format), "yyyy-mm-dd", body$format)
+    
+    if (is.null(data)) {
+      res$status <- 400
+      return(list(error = "Data is required"))
+    }
+    
+    # Convert JSON data to proper R data frame
+    # Handle the case where data comes as a list of lists from JSON
+    if (is.list(data) && length(data) > 0 && is.list(data[[1]])) {
+      # Extract vectors from the list structure, handling both scalar and array values
+      locations <- sapply(data, function(row) {
+        val <- row$location
+        if (is.list(val) || length(val) > 1) as.character(val[[1]]) else as.character(val)
+      })
+      Y_values <- sapply(data, function(row) {
+        val <- row$Y
+        if (is.list(val) || length(val) > 1) as.numeric(val[[1]]) else as.numeric(val)
+      })
+      dates <- sapply(data, function(row) {
+        val <- row$date
+        if (is.list(val) || length(val) > 1) as.character(val[[1]]) else as.character(val)
+      })
+      times <- sapply(data, function(row) {
+        val <- row$time
+        if (is.list(val) || length(val) > 1) as.numeric(val[[1]]) else as.numeric(val)
+      })
+      
+      # Create data frame with proper vectors - use original column names for GeoDataRead
+      data <- data.frame(
+        location = locations,
+        Y = Y_values,
+        date = dates,
+        time = times,
+        stringsAsFactors = FALSE
+      )
+    } else {
+      data <- as.data.frame(data, stringsAsFactors = FALSE)
+    }
+    
+    # Ensure proper data types for GeoDataRead
+    if (Y_id %in% names(data)) {
+      data[[Y_id]] <- as.numeric(as.character(data[[Y_id]]))
+      if (any(is.na(data[[Y_id]]))) {
+        na_count <- sum(is.na(data[[Y_id]]))
+        res$status <- 400
+        return(list(error = paste(Y_id, "column contains", na_count, "non-numeric values that couldn't be converted")))
+      }
+    }
+    
+    # Ensure date column is character for GeoDataRead
+    if (date_id %in% names(data)) {
+      data[[date_id]] <- as.character(data[[date_id]])
+    }
+    
+    # Ensure location column is character
+    if (location_id %in% names(data)) {
+      data[[location_id]] <- as.character(data[[location_id]])
+    }
+    
+    # Debug: Print the data structure
+    cat("DEBUG: GeoDataRead input structure:\n")
+    cat("  - Column names:", paste(names(data), collapse = ", "), "\n")
+    cat("  - Data types:", paste(sapply(data, class), collapse = ", "), "\n")
+    cat("  - Rows:", nrow(data), "\n")
+    cat("  - ", Y_id, "parameter:", Y_id, "\n")
+    if (Y_id %in% names(data)) {
+      cat("  - ", Y_id, "column found, original class:", class(data[[Y_id]]), "\n")
+      cat("  - Sample", Y_id, "values:", paste(head(data[[Y_id]], 5), collapse = ", "), "\n")
+    }
+    cat("  - ", Y_id, "column after conversion, class:", class(data[[Y_id]]), "\n")
+    cat("  - Sample", Y_id, "values after conversion:", paste(head(data[[Y_id]], 5), collapse = ", "), "\n")
+    
+    # Additional debugging before GeoDataRead call
+    cat("DEBUG: About to call GeoDataRead with:\n")
+    cat("  - data class:", class(data), "\n")
+    cat("  - data dimensions:", dim(data), "\n")
+    cat("  - data structure:\n")
+    str(data)
+    cat("  - First few rows:\n")
+    print(head(data, 3))
+    
+    # Call GeoDataRead with error handling
+    tryCatch({
+      geo_data <- GeoDataRead(
+        data = data,
+        date_id = date_id,
+        location_id = location_id,
+        Y_id = Y_id,
+        X = c(), # No covariates
+        format = format,
+        summary = FALSE
+      )
+      cat("DEBUG: GeoDataRead completed successfully\n")
+    }, error = function(e) {
+      cat("ERROR in GeoDataRead call:", e$message, "\n")
+      stop("GeoDataRead failed: ", e$message)
+    })
+    
+    cat("DEBUG: geo_data structure:\n")
+    str(geo_data)
+    
+    # Extract the time mapping from geo_data
+    tryCatch({
+      cat("DEBUG: Extracting time mapping...\n")
+      cat("DEBUG: Available columns in geo_data$data:", paste(names(geo_data$data), collapse = ", "), "\n")
+      
+      # Check if date column exists, if not, create mapping from original data
+      if ("date" %in% names(geo_data$data)) {
+        time_mapping <- unique(geo_data$data[, c("date", "time")])
+      } else {
+        # Create time mapping from original data since GeoDataRead doesn't preserve date
+        cat("DEBUG: Date column not found in geo_data, creating mapping from original data\n")
+        original_mapping <- unique(data[, c("date", "time")])
+        time_mapping <- original_mapping[order(original_mapping$time), ]
+      }
+      
+      cat("DEBUG: Time mapping extracted, ordering...\n")
+      if (!"date" %in% names(geo_data$data)) {
+        # Already ordered above
+        cat("DEBUG: Time mapping already ordered\n")
+      } else {
+        time_mapping <- time_mapping[order(time_mapping$time), ]
+        cat("DEBUG: Time mapping ordered\n")
+      }
+    }, error = function(e) {
+      cat("ERROR in time mapping extraction:", e$message, "\n")
+      stop("Time mapping failed: ", e$message)
+    })
+    
+    # Return the processed data and time mapping
+    tryCatch({
+      cat("DEBUG: Creating results...\n")
+      
+      # GeoDataRead returns the data frame directly, not in a $data component
+      processed_data <- geo_data
+      cat("DEBUG: Original geo_data structure:\n")
+      str(processed_data)
+      cat("DEBUG: geo_data dimensions:", dim(processed_data), "\n")
+      cat("DEBUG: geo_data class:", class(processed_data), "\n")
+      
+      # Convert data frame to list of records for JSON serialization
+      if (is.data.frame(processed_data) && nrow(processed_data) > 0) {
+        # Use jsonlite to properly convert data frame to array of objects
+        json_string <- jsonlite::toJSON(processed_data, dataframe = "rows", auto_unbox = TRUE)
+        data_list <- jsonlite::fromJSON(json_string)
+        cat("DEBUG: Converted to list of", length(data_list), "records using jsonlite\n")
+        cat("DEBUG: Sample record structure:\n")
+        str(data_list[[1]])
+      } else {
+        data_list <- list()
+        cat("DEBUG: Empty data frame, using empty list\n")
+      }
+      
+      # Create time mapping - use original data since GeoDataRead might not preserve date column
+      if ("date" %in% names(geo_data)) {
+        time_mapping <- unique(geo_data[, c("date", "time")])
+      } else {
+        # Create time mapping from original data since GeoDataRead doesn't preserve date
+        cat("DEBUG: Date column not found in geo_data, creating mapping from original data\n")
+        original_mapping <- unique(data[, c("date", "time")])
+        time_mapping <- original_mapping[order(original_mapping$time), ]
+      }
+      time_mapping <- time_mapping[order(time_mapping$time), ]
+      
+      # Convert time_mapping to list of records with proper scalar values
+      time_mapping_list <- lapply(1:nrow(time_mapping), function(i) {
+        # Ensure we get scalar values, not single-element vectors
+        date_val <- time_mapping$date[i]
+        time_val <- time_mapping$time[i]
+        
+        # Extract from single-element vectors if needed
+        if (length(date_val) == 1 && is.list(date_val)) {
+          date_val <- date_val[[1]]
+        }
+        if (length(time_val) == 1 && is.list(time_val)) {
+          time_val <- time_val[[1]]
+        }
+        
+        list(
+          date = as.character(date_val),
+          time = as.numeric(time_val)
+        )
+      })
+      
+      results <- list(
+        success = TRUE,
+        data = data_list,
+        time_mapping = time_mapping_list,
+        summary = list(
+          total_rows = nrow(geo_data),
+          unique_locations = length(unique(geo_data[[location_id]])),
+          unique_dates = if("date" %in% names(geo_data)) length(unique(geo_data$date)) else length(unique(data$date)),
+          time_range = list(
+            min_time = min(geo_data$time, na.rm = TRUE),
+            max_time = max(geo_data$time, na.rm = TRUE)
+          ),
+          date_range = list(
+            min_date = if("date" %in% names(geo_data)) min(geo_data$date, na.rm = TRUE) else min(data$date, na.rm = TRUE),
+            max_date = if("date" %in% names(geo_data)) max(geo_data$date, na.rm = TRUE) else max(data$date, na.rm = TRUE)
+          )
+        )
+      )
+      cat("DEBUG: Results created successfully with", length(data_list), "data records\n")
+    }, error = function(e) {
+      cat("ERROR in results creation:", e$message, "\n")
+      stop("Results creation failed: ", e$message)
+    })
+    
+    # Manually serialize with auto_unbox to prevent array-wrapping of scalars
+    res$setHeader("Content-Type", "application/json")
+    res$body <- jsonlite::toJSON(results, auto_unbox = TRUE, pretty = FALSE)
+    return(res)
+    
+  }, error = function(e) {
+    res$status <- 500
+    list(error = paste("GeoDataRead processing failed:", e$message))
+  })
+}
+
+#* Run GeoLift analysis for treatment step
+#* @post /api/geolift/analysis
+function(req, res) {
+  tryCatch({
+    body <- jsonlite::fromJSON(req$postBody)
+    data <- body$data
+    locations <- body$locations
+    treatment_start_date <- body$treatment_start_date
+    treatment_end_date <- body$treatment_end_date
+    treatment_start_time <- body$treatment_start_time
+    treatment_end_time <- body$treatment_end_time
+    alpha <- ifelse(is.null(body$alpha), 0.05, body$alpha)
+    fixed_effects <- ifelse(is.null(body$fixed_effects), TRUE, body$fixed_effects)
+    model <- ifelse(is.null(body$model), "best", body$model)
+    
+    if (is.null(data)) {
+      res$status <- 400
+      return(list(error = "Data is required"))
+    }
+    
+    if (is.null(locations)) {
+      res$status <- 400
+      return(list(error = "Test locations are required"))
+    }
+    
+    # Check if we have dates or times
+    has_dates <- !is.null(treatment_start_date) && !is.null(treatment_end_date)
+    has_times <- !is.null(treatment_start_time) && !is.null(treatment_end_time)
+    
+    if (!has_dates && !has_times) {
+      res$status <- 400
+      return(list(error = "Either treatment dates or treatment times are required"))
+    }
+    
+    data <- as.data.frame(data)
+    
+    # Ensure Y column is numeric (in case JSON sends it as strings)
+    if ("Y" %in% names(data)) {
+      data$Y <- as.numeric(as.character(data$Y))
+      if (any(is.na(data$Y))) {
+        na_count <- sum(is.na(data$Y))
+        res$status <- 400
+        return(list(error = paste("Y column contains", na_count, "non-numeric values that couldn't be converted")))
+      }
+    }
+    
+    # Ensure time column is numeric if present
+    if ("time" %in% names(data)) {
+      data$time <- as.numeric(as.character(data$time))
+    }
+    
+    if (is.character(locations) && length(locations) == 1) {
+      locations <- strsplit(locations, ",")[[1]]
+      locations <- trimws(locations)
+    }
+    
+    # Convert dates to time periods if dates are provided
+    if (has_dates) {
+      # Use GeoDataRead to create proper time mapping
+      geo_data <- GeoDataRead(
+        data = data,
+        date_id = "date",
+        location_id = "location", 
+        Y_id = "Y",
+        X = c(), # No covariates
+        format = "yyyy-mm-dd",
+        summary = FALSE
+      )
+      
+      # Convert treatment dates to time periods
+      treatment_start_date <- as.Date(treatment_start_date)
+      treatment_end_date <- as.Date(treatment_end_date)
+      
+      # Find corresponding time periods in geo_data
+      unique_dates <- unique(geo_data$data[, c("date", "time")])
+      unique_dates$date <- as.Date(unique_dates$date)
+      
+      start_match <- unique_dates[unique_dates$date == treatment_start_date, "time"]
+      end_match <- unique_dates[unique_dates$date == treatment_end_date, "time"]
+      
+      if (length(start_match) == 0) {
+        res$status <- 400
+        return(list(error = paste("Treatment start date", treatment_start_date, "not found in data")))
+      }
+      
+      if (length(end_match) == 0) {
+        res$status <- 400
+        return(list(error = paste("Treatment end date", treatment_end_date, "not found in data")))
+      }
+      
+      treatment_start_time <- start_match[1]
+      treatment_end_time <- end_match[1]
+      
+      # Use geo_data for analysis
+      analysis_data <- geo_data
+    } else {
+      # Use time periods directly - ensure they are valid
+      if (!is.numeric(treatment_start_time) || !is.finite(treatment_start_time)) {
+        res$status <- 400
+        return(list(error = paste("Invalid treatment_start_time:", treatment_start_time)))
+      }
+      
+      if (!is.numeric(treatment_end_time) || !is.finite(treatment_end_time)) {
+        res$status <- 400
+        return(list(error = paste("Invalid treatment_end_time:", treatment_end_time)))
+      }
+      
+      # Create geo_data structure from existing data
+      analysis_data <- list(data = data)
+    }
+    
+    if (treatment_start_time >= treatment_end_time) {
+      res$status <- 400
+      return(list(error = "Treatment start time must be before end time"))
+    }
+    
+    # Validate treatment times are within data range
+    min_time <- min(analysis_data$data$time, na.rm = TRUE)
+    max_time <- max(analysis_data$data$time, na.rm = TRUE)
+    
+    if (treatment_start_time < min_time || treatment_start_time > max_time) {
+      res$status <- 400
+      return(list(error = paste("Treatment start time", treatment_start_time, "is outside data range", min_time, "to", max_time)))
+    }
+    
+    if (treatment_end_time < min_time || treatment_end_time > max_time) {
+      res$status <- 400
+      return(list(error = paste("Treatment end time", treatment_end_time, "is outside data range", min_time, "to", max_time)))
+    }
+
+    # Debug: Print the values being passed to GeoLift
+    cat("Debug - Treatment start time:", treatment_start_time, "\n")
+    cat("Debug - Treatment end time:", treatment_end_time, "\n")
+    cat("Debug - Locations:", paste(locations, collapse = ", "), "\n")
+    cat("Debug - Data rows:", nrow(data), "\n")
+    cat("Debug - Time range in data:", min(data$time, na.rm = TRUE), "to", max(data$time, na.rm = TRUE), "\n")
+
+    geolift_result <- GeoLift(
+      data = analysis_data,
+      locations = locations,
+      treatment_start_time = treatment_start_time,
+      treatment_end_time = treatment_end_time,
+      alpha = alpha,
+      model = model,
+      ConfidenceIntervals = TRUE
+    )
+    
+    # Format the results for the frontend
+    results <- list(
+      success = TRUE,
+      summary = list(
+        average_lift = geolift_result$inference$ATT,
+        percent_lift = geolift_result$inference$Perc.Lift,
+        p_value = geolift_result$inference$pvalue,
+        incremental_y = sum(geolift_result$incremental, na.rm = TRUE),
+        is_significant = geolift_result$inference$pvalue < alpha,
+        effect_direction = ifelse(geolift_result$inference$ATT > 0, "positive", "negative")
+      ),
+      results = list(
+        att = geolift_result$inference$ATT,
+        percent_lift = geolift_result$inference$Perc.Lift,
+        p_value = geolift_result$inference$pvalue,
+        incremental_y = sum(geolift_result$incremental, na.rm = TRUE),
+        treatment_start = geolift_result$TreatmentStart,
+        treatment_end = geolift_result$TreatmentEnd,
+        test_locations = geolift_result$test_id$name
+      )
+    )
+    
+    # Add chart data if available
+    if (!is.null(geolift_result$data)) {
+      # Generate lift data for charting
+      lift_data <- geolift_result$data
+      if (nrow(lift_data) > 0) {
+        tryCatch({
+          # Calculate pre-treatment mean for lift calculation
+          pre_treatment_data <- lift_data[lift_data$time < treatment_start_time, ]
+          if (nrow(pre_treatment_data) > 0) {
+            pre_treatment_mean <- mean(pre_treatment_data$Y, na.rm = TRUE)
+            
+            # Generate lift data (normalized by pre-treatment average)
+            if (is.numeric(geolift_result$incremental) && pre_treatment_mean > 0) {
+              results$lift_data <- list(
+                time = {
+                # Include full time range
+                sort(unique(lift_data$time))
+              },
+                lift = rep(0, nrow(lift_data))  # Simplified to avoid subscript error
+              )
+            } else {
+              # Fallback: use raw incremental values
+              results$lift_data <- list(
+                time = {
+                # Include full time range
+                sort(unique(lift_data$time))
+              },
+                lift = rep(0, nrow(lift_data))
+              )
+            }
+          } else {
+            results$lift_data <- list(
+              time = {
+                # Include full time range
+                sort(unique(lift_data$time))
+              },
+              lift = rep(0, nrow(lift_data))
+            )
+          }
+          
+          # Generate ATT data (absolute treatment effect) with proper time series
+          if (is.numeric(geolift_result$incremental) && length(geolift_result$incremental) == nrow(lift_data)) {
+            results$att_data <- list(
+              time = {
+                # Include full time range
+                sort(unique(lift_data$time))
+              },
+              att = {
+                # Create time series with full range: 0 for pre-treatment, ATT for treatment period
+                all_times <- sort(unique(lift_data$time))
+                att_values <- numeric(length(all_times))
+                for (i in seq_along(all_times)) {
+                  time_val <- all_times[i]
+                  if (time_val >= treatment_start_time && time_val <= treatment_end_time) {
+                    att_values[i] <- geolift_result$inference$ATT
+                  } else {
+                    att_values[i] <- 0  # No effect before/after treatment
+                  }
+                }
+                att_values
+              }
+            )
+          } else {
+            # Fallback: create time series with constant ATT value
+            results$att_data <- list(
+              time = {
+                # Include full time range
+                sort(unique(lift_data$time))
+              },
+              att = {
+                # Create time series with full range: 0 for pre-treatment, ATT for treatment period
+                all_times <- sort(unique(lift_data$time))
+                att_values <- numeric(length(all_times))
+                treatment_count <- 0
+                for (i in seq_along(all_times)) {
+                  time_val <- all_times[i]
+                  if (time_val >= treatment_start_time && time_val <= treatment_end_time) {
+                    att_values[i] <- geolift_result$inference$ATT
+                    treatment_count <- treatment_count + 1
+                  } else {
+                    att_values[i] <- 0  # No effect before/after treatment
+                  }
+                }
+                cat("DEBUG: Full period ATT - total periods:", length(all_times), "treatment periods:", treatment_count, "ATT:", geolift_result$inference$ATT, "\n")
+                att_values
+              }
+            )
+          }
+          
+          cat("DEBUG: ATT chart data generated successfully\n")
+          cat("DEBUG: att_data length:", length(results$att_data$time), "\n")
+          cat("DEBUG: att_data sample values:", paste(head(results$att_data$att, 5), collapse = ", "), "\n")
+          
+        }, error = function(e) {
+          cat("ERROR in chart data generation:", e$message, "\n")
+          # Provide fallback empty chart data
+          results$lift_data <<- list(time = lift_data$time, lift = rep(0, nrow(lift_data)))
+          results$att_data <<- list(time = lift_data$time, att = rep(0, nrow(lift_data)))
+        })
+      }
+    }
+    
+    return(results)
+    
+  }, error = function(e) {
+    res$status <- 500
+    list(error = paste("GeoLift analysis failed:", e$message))
+  })
+}
+
+#* Run GeoLift analysis using pre-processed GeoDataRead response
+#* @post /api/geolift/analysis-with-geodata
+function(req, res) {
+  tryCatch({
+    body <- jsonlite::fromJSON(req$postBody)
+    geoDataReadResponse <- body$geoDataReadResponse
+    locations <- body$locations
+    treatment_start_time <- body$treatment_start_time
+    treatment_end_time <- body$treatment_end_time
+    alpha <- ifelse(is.null(body$alpha), 0.05, body$alpha)
+    fixed_effects <- ifelse(is.null(body$fixed_effects), TRUE, body$fixed_effects)
+    model <- ifelse(is.null(body$model), "best", body$model)
+    
+    cat("DEBUG: Raw parameters received in analysis-with-geodata:\n")
+    cat("  - treatment_start_time:", paste(treatment_start_time, collapse = ", "), "class:", class(treatment_start_time), "length:", length(treatment_start_time), "\n")
+    cat("  - treatment_end_time:", paste(treatment_end_time, collapse = ", "), "class:", class(treatment_end_time), "length:", length(treatment_end_time), "\n")
+    
+    # Ensure we have scalar values, not arrays
+    if (length(treatment_start_time) > 1) {
+      cat("DEBUG: treatment_start_time is an array, extracting first value\n")
+      treatment_start_time <- treatment_start_time[1]
+    }
+    if (length(treatment_end_time) > 1) {
+      cat("DEBUG: treatment_end_time is an array, extracting first value\n")
+      treatment_end_time <- treatment_end_time[1]
+    }
+    
+    cat("DEBUG: Processed parameters:\n")
+    cat("  - treatment_start_time:", treatment_start_time, "class:", class(treatment_start_time), "\n")
+    cat("  - treatment_end_time:", treatment_end_time, "class:", class(treatment_end_time), "\n")
+    
+    if (is.null(geoDataReadResponse)) {
+      res$status <- 400
+      return(list(error = "GeoDataRead response is required"))
+    }
+    
+    if (is.null(locations)) {
+      res$status <- 400
+      return(list(error = "Test locations are required"))
+    }
+    
+    if (is.null(treatment_start_time) || is.null(treatment_end_time)) {
+      res$status <- 400
+      return(list(error = "Treatment start and end times are required"))
+    }
+    
+    # Extract the processed data from GeoDataRead response
+    analysis_data <- geoDataReadResponse$data
+    
+    cat("DEBUG: analysis-with-geodata - GeoDataRead response structure:\n")
+    str(geoDataReadResponse)
+    cat("DEBUG: analysis-with-geodata - analysis_data class:", class(analysis_data), "\n")
+    cat("DEBUG: analysis-with-geodata - analysis_data length:", length(analysis_data), "\n")
+    if (length(analysis_data) > 0) {
+      cat("DEBUG: analysis-with-geodata - First element class:", class(analysis_data[[1]]), "\n")
+      cat("DEBUG: analysis-with-geodata - First element structure:\n")
+      str(analysis_data[[1]])
+    }
+    
+    if (is.null(analysis_data)) {
+      res$status <- 400
+      return(list(error = "No data found in GeoDataRead response"))
+    }
+    
+    # Handle different data structures (including array-wrapped values)
+    if (is.list(analysis_data) && length(analysis_data) > 0) {
+      if (is.list(analysis_data[[1]])) {
+        # Convert list of lists to data frame, handling array-wrapped values
+        locations_vec <- sapply(analysis_data, function(row) {
+          val <- row$location
+          if (is.list(val) || length(val) > 1) as.character(val[[1]]) else as.character(val)
+        })
+        Y_values_vec <- sapply(analysis_data, function(row) {
+          val <- row$Y
+          if (is.list(val) || length(val) > 1) as.numeric(val[[1]]) else as.numeric(val)
+        })
+        times_vec <- sapply(analysis_data, function(row) {
+          val <- row$time
+          if (is.list(val) || length(val) > 1) as.numeric(val[[1]]) else as.numeric(val)
+        })
+        
+        analysis_data <- data.frame(
+          location = locations_vec,
+          Y = Y_values_vec,
+          time = times_vec,
+          stringsAsFactors = FALSE
+        )
+      } else {
+        analysis_data <- as.data.frame(analysis_data)
+      }
+    } else {
+      analysis_data <- as.data.frame(analysis_data)
+    }
+    
+    cat("DEBUG: Analysis data after conversion:\n")
+    cat("  - Class:", class(analysis_data), "\n")
+    cat("  - Dimensions:", dim(analysis_data), "\n")
+    cat("  - Column names:", paste(names(analysis_data), collapse = ", "), "\n")
+    cat("  - Column types:", paste(sapply(analysis_data, class), collapse = ", "), "\n")
+    cat("  - First few rows:\n")
+    print(head(analysis_data, 3))
+    
+    # Ensure it's a proper data frame
+    if (!is.data.frame(analysis_data)) {
+      cat("ERROR: analysis_data is not a data frame, converting...\n")
+      analysis_data <- as.data.frame(analysis_data, stringsAsFactors = FALSE)
+      cat("DEBUG: After as.data.frame conversion:\n")
+      cat("  - Class:", class(analysis_data), "\n")
+      cat("  - Dimensions:", dim(analysis_data), "\n")
+    }
+    
+    if (is.character(locations) && length(locations) == 1) {
+      locations <- strsplit(locations, ",")[[1]]
+      locations <- trimws(locations)
+    }
+    
+    # Validate treatment times are numeric and finite
+    if (!is.numeric(treatment_start_time) || !is.finite(treatment_start_time)) {
+      res$status <- 400
+      return(list(error = paste("Invalid treatment_start_time:", treatment_start_time)))
+    }
+    
+    if (!is.numeric(treatment_end_time) || !is.finite(treatment_end_time)) {
+      res$status <- 400
+      return(list(error = paste("Invalid treatment_end_time:", treatment_end_time)))
+    }
+    
+    if (treatment_start_time >= treatment_end_time) {
+      res$status <- 400
+      return(list(error = "Treatment start time must be before end time"))
+    }
+    
+    # Validate treatment times are within data range
+    if (!"time" %in% names(analysis_data)) {
+      res$status <- 400
+      return(list(error = "Time column not found in analysis data"))
+    }
+    
+    # Ensure time column is numeric
+    analysis_data$time <- as.numeric(analysis_data$time)
+    
+    # Check for valid time values
+    valid_times <- analysis_data$time[!is.na(analysis_data$time) & is.finite(analysis_data$time)]
+    
+    if (length(valid_times) == 0) {
+      res$status <- 400
+      return(list(error = "No valid time values found in data"))
+    }
+    
+    min_time <- min(valid_times)
+    max_time <- max(valid_times)
+    
+    cat("Debug - Valid time range in analysis data:", min_time, "to", max_time, "\n")
+    cat("Debug - Treatment times requested:", treatment_start_time, "to", treatment_end_time, "\n")
+    
+    if (treatment_start_time < min_time || treatment_start_time > max_time) {
+      res$status <- 400
+      return(list(error = paste("Treatment start time", treatment_start_time, "is outside data range", min_time, "to", max_time)))
+    }
+    
+    if (treatment_end_time < min_time || treatment_end_time > max_time) {
+      res$status <- 400
+      return(list(error = paste("Treatment end time", treatment_end_time, "is outside data range", min_time, "to", max_time)))
+    }
+
+    # Debug: Print the values being passed to GeoLift
+    cat("Debug - GeoLift with GeoData - Treatment start time:", treatment_start_time, "\n")
+    cat("Debug - GeoLift with GeoData - Treatment end time:", treatment_end_time, "\n")
+    cat("Debug - GeoLift with GeoData - Locations:", paste(locations, collapse = ", "), "\n")
+    cat("Debug - GeoLift with GeoData - Data rows:", nrow(analysis_data), "\n")
+    cat("Debug - GeoLift with GeoData - Time range in data:", min(analysis_data$time, na.rm = TRUE), "to", max(analysis_data$time, na.rm = TRUE), "\n")
+
+    # Pass the data frame directly to GeoLift (not wrapped in a list)
+    cat("DEBUG: About to call GeoLift with:\n")
+    cat("  - analysis_data class:", class(analysis_data), "\n")
+    cat("  - analysis_data dimensions:", dim(analysis_data), "\n")
+    cat("  - locations:", paste(locations, collapse = ", "), "\n")
+    cat("  - treatment times:", treatment_start_time, "to", treatment_end_time, "\n")
+    cat("  - fixed_effects:", fixed_effects, "\n")
+    cat("  - alpha:", alpha, "\n")
+    cat("  - model:", model, "\n")
+    cat("DEBUG: First few rows of analysis_data:\n")
+    print(head(analysis_data, 10))
+    cat("DEBUG: Column types:\n")
+    print(sapply(analysis_data, class))
+    cat("DEBUG: Sample Y values:", paste(head(analysis_data$Y, 10), collapse = ", "), "\n")
+    cat("DEBUG: Sample time values:", paste(head(analysis_data$time, 10), collapse = ", "), "\n")
+    cat("DEBUG: Sample location values:", paste(head(analysis_data$location, 10), collapse = ", "), "\n")
+
+    geolift_result <- tryCatch({
+      GeoLift(
+        Y_id = "Y",
+        data = analysis_data,
+        locations = locations,
+        treatment_start_time = treatment_start_time,
+        treatment_end_time = treatment_end_time,
+        fixed_effects = fixed_effects,
+        model = model,
+        alpha = alpha
+      )
+    }, error = function(e) {
+      cat("ERROR in GeoLift call:", e$message, "\n")
+      cat("DEBUG: analysis_data structure at error:\n")
+      str(analysis_data)
+      stop("GeoLift analysis failed: ", e$message)
+    })
+    
+    cat("DEBUG: GeoLift completed successfully, checking result structure:\n")
+    cat("DEBUG: geolift_result class:", class(geolift_result), "\n")
+    cat("DEBUG: geolift_result names:", paste(names(geolift_result), collapse = ", "), "\n")
+    if ("inference" %in% names(geolift_result)) {
+      cat("DEBUG: inference names:", paste(names(geolift_result$inference), collapse = ", "), "\n")
+    }
+    
+    # Format the results for the frontend
+    results <- list(
+      success = TRUE,
+      summary = list(
+        average_lift = geolift_result$inference$ATT,
+        percent_lift = geolift_result$inference$Perc.Lift,
+        p_value = geolift_result$inference$pvalue,
+        incremental_y = sum(geolift_result$incremental, na.rm = TRUE),
+        is_significant = geolift_result$inference$pvalue < alpha,
+        effect_direction = ifelse(geolift_result$inference$ATT > 0, "positive", "negative")
+      ),
+      results = list(
+        att = geolift_result$inference$ATT,
+        percent_lift = geolift_result$inference$Perc.Lift,
+        p_value = geolift_result$inference$pvalue,
+        incremental_y = sum(geolift_result$incremental, na.rm = TRUE),
+        treatment_start = geolift_result$TreatmentStart,
+        treatment_end = geolift_result$TreatmentEnd,
+        test_locations = geolift_result$test_id$name
+      )
+    )
+    
+    # Add chart data if available
+    if (!is.null(geolift_result$data)) {
+      # Generate lift data for charting
+      lift_data <- geolift_result$data
+      if (nrow(lift_data) > 0) {
+        tryCatch({
+          # Calculate pre-treatment mean for lift calculation
+          pre_treatment_data <- lift_data[lift_data$time < treatment_start_time, ]
+          if (nrow(pre_treatment_data) > 0) {
+            pre_treatment_mean <- mean(pre_treatment_data$Y, na.rm = TRUE)
+            
+            # Generate lift data (normalized by pre-treatment average)
+            if (is.numeric(geolift_result$incremental) && pre_treatment_mean > 0) {
+              results$lift_data <- list(
+                time = {
+                # Include full time range
+                sort(unique(lift_data$time))
+              },
+                lift = rep(0, nrow(lift_data))  # Simplified to avoid subscript error
+              )
+            } else {
+              # Fallback: use raw incremental values
+              results$lift_data <- list(
+                time = {
+                # Include full time range
+                sort(unique(lift_data$time))
+              },
+                lift = rep(0, nrow(lift_data))
+              )
+            }
+          } else {
+            results$lift_data <- list(
+              time = {
+                # Include full time range
+                sort(unique(lift_data$time))
+              },
+              lift = rep(0, nrow(lift_data))
+            )
+          }
+          
+          # Generate ATT data (absolute treatment effect) with proper time series
+          if (is.numeric(geolift_result$incremental) && length(geolift_result$incremental) == nrow(lift_data)) {
+            results$att_data <- list(
+              time = {
+                # Include full time range
+                sort(unique(lift_data$time))
+              },
+              att = {
+                # Create time series with full range: 0 for pre-treatment, ATT for treatment period
+                all_times <- sort(unique(lift_data$time))
+                att_values <- numeric(length(all_times))
+                for (i in seq_along(all_times)) {
+                  time_val <- all_times[i]
+                  if (time_val >= treatment_start_time && time_val <= treatment_end_time) {
+                    att_values[i] <- geolift_result$inference$ATT
+                  } else {
+                    att_values[i] <- 0  # No effect before/after treatment
+                  }
+                }
+                att_values
+              }
+            )
+          } else {
+            # Fallback: create time series with constant ATT value
+            results$att_data <- list(
+              time = {
+                # Include full time range
+                sort(unique(lift_data$time))
+              },
+              att = {
+                # Create time series with full range: 0 for pre-treatment, ATT for treatment period
+                all_times <- sort(unique(lift_data$time))
+                att_values <- numeric(length(all_times))
+                treatment_count <- 0
+                for (i in seq_along(all_times)) {
+                  time_val <- all_times[i]
+                  if (time_val >= treatment_start_time && time_val <= treatment_end_time) {
+                    att_values[i] <- geolift_result$inference$ATT
+                    treatment_count <- treatment_count + 1
+                  } else {
+                    att_values[i] <- 0  # No effect before/after treatment
+                  }
+                }
+                cat("DEBUG: Full period ATT - total periods:", length(all_times), "treatment periods:", treatment_count, "ATT:", geolift_result$inference$ATT, "\n")
+                att_values
+              }
+            )
+          }
+          
+          cat("DEBUG: ATT chart data generated successfully\n")
+          cat("DEBUG: att_data length:", length(results$att_data$time), "\n")
+          cat("DEBUG: att_data sample values:", paste(head(results$att_data$att, 5), collapse = ", "), "\n")
+          
+        }, error = function(e) {
+          cat("ERROR in chart data generation:", e$message, "\n")
+          # Provide fallback empty chart data
+          results$lift_data <<- list(time = lift_data$time, lift = rep(0, nrow(lift_data)))
+          results$att_data <<- list(time = lift_data$time, att = rep(0, nrow(lift_data)))
+        })
+      }
+    }
+    
+    return(results)
+    
+  }, error = function(e) {
+    res$status <- 500
+    list(error = paste("GeoLift with GeoData analysis failed:", e$message))
   })
 }

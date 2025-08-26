@@ -24,6 +24,7 @@ const ExperimentSetup = ({ onBack }) => {
   const [testLocations, setTestLocations] = useState('');
 
   const [processedData, setProcessedData] = useState(null);
+  const [geoDataReadResponse, setGeoDataReadResponse] = useState(null);
   const [uploadError, setUploadError] = useState('');
 
   // Track if data has been ingested (user clicked "Ingest Data" button)
@@ -34,6 +35,15 @@ const ExperimentSetup = ({ onBack }) => {
   // Track pre-call loading state to prevent duplicate API calls
   const [isPreCallingMarketSelection, setIsPreCallingMarketSelection] = useState(false);
   const [marketSelectionProgress, setMarketSelectionProgress] = useState(0);
+
+  // Selected market row state - persisted across step navigation
+  const [selectedMarketRow, setSelectedMarketRow] = useState(null);
+
+  // Chart and expanded row state - persisted across step navigation
+  const [expandedRows, setExpandedRows] = useState({});
+  const [rowAnalysisData, setRowAnalysisData] = useState({});
+  const [rowAnalysisLoading, setRowAnalysisLoading] = useState({});
+  const [rowAnalysisErrors, setRowAnalysisErrors] = useState({});
 
   // Shared data processing function
   const processDataForAPI = (data, colMappings) => {
@@ -215,8 +225,10 @@ const ExperimentSetup = ({ onBack }) => {
   const goToStep = (step) => {
     if (step === 1) {
       setCurrentStep(1);
-    } else if (step === 2 && processedData && isDataIngested) {
+    } else if (step === 2 && processedData) {
       setCurrentStep(2);
+    } else if (step === 3 && processedData) {
+      setCurrentStep(3);
     }
   };
 
@@ -224,6 +236,10 @@ const ExperimentSetup = ({ onBack }) => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     }
+  };
+
+  const goToAnalysis = () => {
+    setCurrentStep(3);
   };
 
 
@@ -236,9 +252,9 @@ const ExperimentSetup = ({ onBack }) => {
     }
   }, [processedData, selectedMarketCombo, analysisParams]);
 
-  // Pre-call market selection when data is ingested (not just when file is uploaded)
+  // Pre-call GeoDataRead and market selection when data is ingested
   useEffect(() => {
-    const preCallMarketSelection = async () => {
+    const preCallGeoDataReadAndMarketSelection = async () => {
       if (!fileData || !fileData.rows || fileData.rows.length === 0 || !isDataIngested) {
         setIsPreCallingMarketSelection(false);
         return;
@@ -255,7 +271,7 @@ const ExperimentSetup = ({ onBack }) => {
       try {
         setIsPreCallingMarketSelection(true);
         setMarketSelectionProgress(0);
-        console.log('[CreateExperiment] Pre-calling market selection after file upload...');
+        console.log('[CreateExperiment] Pre-calling GeoDataRead and market selection after file upload...');
         
         // Simulate progress for better UX (cap at 99% until API completes)
         progressInterval = setInterval(() => {
@@ -279,11 +295,32 @@ const ExperimentSetup = ({ onBack }) => {
             sampleRow: processedRows[0]
           });
         } catch (dataError) {
-          console.log('[CreateExperiment] Cannot pre-call market selection: data processing failed -', dataError.message);
+          console.log('[CreateExperiment] Cannot pre-call: data processing failed -', dataError.message);
           return;
         }
 
-        // Call market selection with default parameters
+        // Step 1: Call GeoDataRead first (required for proper GeoLift workflow)
+        console.log('[CreateExperiment] Pre-calling GeoDataRead...');
+        const geoDataResult = await geoliftAPI.geoDataRead(processedRows, {
+          date_id: "date",
+          location_id: "location",
+          Y_id: "Y",
+          format: "yyyy-mm-dd"
+        });
+
+        if (!geoDataResult.success || !geoDataResult.data || 
+            (Array.isArray(geoDataResult.data) && geoDataResult.data.length === 0) ||
+            (typeof geoDataResult.data === 'object' && Object.keys(geoDataResult.data).length === 0)) {
+          console.error('[CreateExperiment] GeoDataRead pre-call failed:', geoDataResult);
+          clearInterval(progressInterval);
+          return;
+        }
+
+        console.log('[CreateExperiment] GeoDataRead pre-call successful, storing response...');
+        setGeoDataReadResponse(geoDataResult);
+        
+        // Step 2: Call market selection with GeoDataRead converted data
+        console.log('[CreateExperiment] Pre-calling market selection with GeoDataRead data...');
         const defaultParams = {
           treatmentPeriods: 28,
           effectSize: [0, 0.05, 0.1, 0.15, 0.2, 0.25],
@@ -292,7 +329,7 @@ const ExperimentSetup = ({ onBack }) => {
           alpha: 0.1
         };
         
-        const resp = await geoliftAPI.marketSelection(processedRows, defaultParams);
+        const resp = await geoliftAPI.marketSelection(geoDataResult.data, defaultParams);
         
         clearInterval(progressInterval);
         
@@ -311,7 +348,7 @@ const ExperimentSetup = ({ onBack }) => {
               lookbackWindow: defaultParams.lookbackWindow,
               cpic: defaultParams.cpic,
               alpha: defaultParams.alpha,
-              dataLength: processedRows.length
+              dataLength: geoDataResult.data.length
             }
           });
           console.log('[CreateExperiment] Market selection pre-cached successfully');
@@ -320,7 +357,7 @@ const ExperimentSetup = ({ onBack }) => {
         }
       } catch (e) {
         clearInterval(progressInterval);
-        console.log('[CreateExperiment] Market selection pre-call error (non-blocking):', e.message);
+        console.log('[CreateExperiment] Pre-call error (non-blocking):', e.message);
       } finally {
         setIsPreCallingMarketSelection(false);
         // Reset progress after a delay
@@ -328,7 +365,7 @@ const ExperimentSetup = ({ onBack }) => {
       }
     };
 
-    preCallMarketSelection();
+    preCallGeoDataReadAndMarketSelection();
   }, [fileData, locationColumn, outcomeColumn, dateColumn, isDataIngested]); // Re-run when data is ingested or column mappings change
 
   const convertToCsvString = (data) => {
@@ -352,7 +389,13 @@ const ExperimentSetup = ({ onBack }) => {
     return [headerRow, ...dataRows].join('\n');
   };
 
-  const handleIngestNext = () => {
+  const handleIngestNext = async () => {
+    // If we already have processed data from GeoDataRead, just navigate to step 2
+    if (processedData) {
+      setCurrentStep(2);
+      return;
+    }
+    
     if (!fileData) return;
     
     try {
@@ -389,10 +432,13 @@ const ExperimentSetup = ({ onBack }) => {
         }
       });
 
+      // Store the raw processed data - GeoDataRead will be called by useEffect
       setProcessedData(processedRows);
+      setIsDataIngested(true); // This will trigger the useEffect to call GeoDataRead and market selection
       setCurrentStep(2);
       
     } catch (e) {
+      console.error('[CreateExperiment] Data processing failed:', e);
       setUploadError(e.message || 'Data processing failed');
     }
   };
@@ -421,6 +467,15 @@ const ExperimentSetup = ({ onBack }) => {
           >
             <div className="step-circle">2</div>
             <div className="step-label">Configure</div>
+          </div>
+          <div className={`step-connector ${currentStep >= 3 ? 'active' : ''}`}></div>
+          <div 
+            className={`step ${currentStep >= 3 ? 'active' : ''} ${currentStep === 3 ? 'current' : ''} ${!processedData ? 'disabled' : ''}`}
+            onClick={() => goToStep(3)}
+            style={{ cursor: processedData ? 'pointer' : 'not-allowed' }}
+          >
+            <div className="step-circle">3</div>
+            <div className="step-label">Analyze</div>
           </div>
         </div>
           </div>
@@ -462,13 +517,13 @@ const ExperimentSetup = ({ onBack }) => {
 
             {uploadError && <div className="upload-error">{uploadError}</div>}
             <div className="step-actions">
-              <button
-                className={`ingest-next-btn ${(canProceed && isDataIngested) ? '' : 'disabled'}`}
-                disabled={!canProceed || !isDataIngested}
-                onClick={handleIngestNext}
-              >
-                Next
-              </button>
+                              <button
+                  className={`ingest-next-btn ${(canProceed && (processedData || isDataIngested)) ? '' : 'disabled'}`}
+                  disabled={!canProceed || (!processedData && !isDataIngested)}
+                  onClick={handleIngestNext}
+                >
+                  Next
+                </button>
             </div>
           </>
         )}
@@ -486,10 +541,56 @@ const ExperimentSetup = ({ onBack }) => {
                 </div>
             <ConfigureExperiment 
               processedData={processedData} 
+              geoDataReadResponse={geoDataReadResponse}
               cachedResults={cachedMarketSelection}
               onCacheResults={setCachedMarketSelection}
               isPreCallingMarketSelection={isPreCallingMarketSelection}
               marketSelectionProgress={marketSelectionProgress}
+              onGoToAnalysis={goToAnalysis}
+              selectedMarketRow={selectedMarketRow}
+              onSelectedMarketRowChange={setSelectedMarketRow}
+              expandedRows={expandedRows}
+              onExpandedRowsChange={setExpandedRows}
+              rowAnalysisData={rowAnalysisData}
+              onRowAnalysisDataChange={setRowAnalysisData}
+              rowAnalysisLoading={rowAnalysisLoading}
+              onRowAnalysisLoadingChange={setRowAnalysisLoading}
+              rowAnalysisErrors={rowAnalysisErrors}
+              onRowAnalysisErrorsChange={setRowAnalysisErrors}
+            />
+          </>
+        )}
+
+        {currentStep === 3 && (
+          <>
+            <div className="step-navigation">
+              <button 
+                className="nav-button prev-button"
+                onClick={goToPreviousStep}
+              >
+                <ArrowLeft size={16} />
+                Previous: Configure Data
+              </button>
+                </div>
+            <ConfigureExperiment 
+              processedData={processedData} 
+              geoDataReadResponse={geoDataReadResponse}
+              cachedResults={cachedMarketSelection}
+              onCacheResults={setCachedMarketSelection}
+              isPreCallingMarketSelection={isPreCallingMarketSelection}
+              marketSelectionProgress={marketSelectionProgress}
+              onGoToAnalysis={goToAnalysis}
+              currentStep={3}
+              selectedMarketRow={selectedMarketRow}
+              onSelectedMarketRowChange={setSelectedMarketRow}
+              expandedRows={expandedRows}
+              onExpandedRowsChange={setExpandedRows}
+              rowAnalysisData={rowAnalysisData}
+              onRowAnalysisDataChange={setRowAnalysisData}
+              rowAnalysisLoading={rowAnalysisLoading}
+              onRowAnalysisLoadingChange={setRowAnalysisLoading}
+              rowAnalysisErrors={rowAnalysisErrors}
+              onRowAnalysisErrorsChange={setRowAnalysisErrors}
             />
           </>
         )}

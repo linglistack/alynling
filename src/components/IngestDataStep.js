@@ -588,7 +588,6 @@ const IngestDataStep = ({
       <div className="ingestion-content">
         <div className="ingestion-form-panel">
           <div className="form-section">
-            <label className="form-label">Upload data</label>
             <div className="file-upload-options">
               <div className="upload-option">
                 <button

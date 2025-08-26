@@ -110,7 +110,13 @@ const LocationSelectionModal = ({ isOpen, onClose, onSave, initialIncluded = [],
   // Function to normalize state names for better matching
   const normalizeStateName = (name) => {
     if (!name) return '';
-    return name.trim().replace(/\s+/g, ' ');
+    // Convert to proper case (first letter of each word capitalized)
+    return name.trim()
+      .replace(/\s+/g, ' ')
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   };
 
   const showNotification = (message) => {

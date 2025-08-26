@@ -1,3 +1,32 @@
+.configure-experiment-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.configure-header {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 16px;
+}
+
+.page-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 8px 0;
+}
+
+.page-subtitle {
+    font-size: 16px;
+    color: #6b7280;
+    margin: 0;
+}
+
 .configure-experiment {
     display: flex;
     flex-direction: column;
@@ -964,4 +993,51 @@
 /* Antd table wrapper adjustments for tab layout */
 .configure-right .antd-table-wrapper {
     margin-top: 0;
+}
+
+/* Expandable Row Icons */
+.ant-table-row-expand-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    background: white;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ant-table-row-expand-icon:hover {
+    border-color: #667eea;
+    background: #f0f2ff;
+}
+
+.ant-table-row-expand-icon-expanded {
+    border-color: #667eea;
+    background: #667eea;
+    color: white;
+}
+
+.ant-table-row-expand-icon-collapsed {
+    color: #666;
+}
+
+/* Step indicator styling */
+.results-title {
+    position: relative;
+}
+
+.results-title::after {
+    position: absolute;
+    right: 0;
+    top: 0;
+    background: #f3f4f6;
+    color: #6b7280;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
 }
