@@ -9,7 +9,7 @@ const ChatBot = ({ onChatToggle }) => {
     {
       id: 1,
       type: 'bot',
-      content: '你好！我是Alyn AI助手。我可以帮你导航网站功能、解答实验相关问题，或协助你分析数据。你想了解什么？',
+      content: "Hi! I'm Alyn Copilot. I can help you navigate features, answer experiment questions, or assist with data analysis. What would you like to do?",
       timestamp: new Date()
     }
   ]);
@@ -26,21 +26,21 @@ const ChatBot = ({ onChatToggle }) => {
   }, [messages]);
 
   const mockBotResponses = [
-    "我可以帮你创建新的实验。你想设置什么类型的实验？",
-    "让我帮你分析实验数据。你可以上传CSV文件，我会引导你完成数据分析流程。",
-    "关于GeoLift实验，我建议首先确定测试市场和控制市场。需要我详细解释吗？",
-    "MMM（营销组合模型）分析需要至少2-3年的历史数据。你的数据准备好了吗？",
-    "增量测试可以帮你了解真实的广告效果。你想了解哪个渠道的增量效果？",
-    "我可以帮你导航到相应的功能页面。你想要：\n1. 创建实验\n2. 分析数据\n3. 查看MMM模型\n4. 集成数据源",
-    "基于你的问题，我建议查看我们的博客文章了解更多详情。要我为你打开相关文章吗？",
-    "这是一个很好的问题！让我为你提供一些具体的操作步骤..."
+    "I can help you create a new experiment. What type would you like to set up?",
+    "Let me help analyze your data. You can upload a CSV and I'll guide you through the steps.",
+    "For GeoLift, I recommend first choosing test and control markets. Want the details?",
+    "MMM analysis works best with 2–3 years of historical data. Is your data ready?",
+    "Incrementality testing reveals true channel lift. Which channel do you want to evaluate?",
+    "I can navigate you to a feature. Would you like to:\n1. Create Experiment\n2. Analyze Data\n3. View MMM\n4. Integrations",
+    "Based on your question, I suggest reading a related blog article. Want me to open it?",
+    "Great question! Here are some concrete steps you can follow..."
   ];
 
   const quickActions = [
-    { text: "创建新实验", action: "create_experiment" },
-    { text: "分析数据", action: "analyze_data" },
-    { text: "查看MMM", action: "view_mmm" },
-    { text: "帮助文档", action: "help_docs" }
+    { text: "Create Experiment", action: "create_experiment" },
+    { text: "Analyze Data", action: "analyze_data" },
+    { text: "View MMM", action: "view_mmm" },
+    { text: "Help Docs", action: "help_docs" }
   ];
 
   const handleSendMessage = () => {
@@ -57,7 +57,7 @@ const ChatBot = ({ onChatToggle }) => {
     setInputMessage('');
     setIsTyping(true);
 
-    // 模拟AI回复
+    // Simulated AI reply
     setTimeout(() => {
       const botResponse = {
         id: Date.now() + 1,
@@ -81,21 +81,21 @@ const ChatBot = ({ onChatToggle }) => {
     setMessages(prev => [...prev, actionMessage]);
     setIsTyping(true);
 
-    // 模拟针对性回复
+    // Simulated intent-specific reply
     setTimeout(() => {
       let response = '';
       switch (action) {
         case 'create_experiment':
-          response = '好的！我来帮你创建新实验。请告诉我：\n1. 你想测试什么假设？\n2. 目标指标是什么？\n3. 预计实验周期多长？';
+          response = 'Great! I can help you create an experiment. Please share:\n1) Your hypothesis\n2) The primary KPI\n3) Expected test duration';
           break;
         case 'analyze_data':
-          response = '我来帮你分析数据！你可以：\n1. 上传CSV文件进行分析\n2. 连接现有数据源\n3. 查看历史实验结果\n\n需要我引导你到数据上传页面吗？';
+          response = 'I can help analyze your data. You can:\n1) Upload a CSV\n2) Connect an existing source\n3) Review historical results\n\nShall I take you to the upload page?';
           break;
         case 'view_mmm':
-          response = 'MMM模型可以帮你了解各渠道的真实贡献。你想：\n1. 创建新的MMM模型\n2. 查看现有模型结果\n3. 了解MMM基础知识';
+          response = 'MMM helps you understand true channel contribution. Do you want to:\n1) Create a new MMM model\n2) View existing results\n3) Learn MMM basics';
           break;
         case 'help_docs':
-          response = '我可以为你提供以下帮助文档：\n1. GeoLift实验指南\n2. 增量测试最佳实践\n3. 数据格式要求\n4. 常见问题解答\n\n你想了解哪个方面？';
+          response = 'I can share docs for:\n1) GeoLift Guide\n2) Incrementality Best Practices\n3) Data Format Requirements\n4) FAQs\n\nWhich one would you like?';
           break;
         default:
           response = mockBotResponses[Math.floor(Math.random() * mockBotResponses.length)];
@@ -120,7 +120,7 @@ const ChatBot = ({ onChatToggle }) => {
   };
 
   const formatTime = (timestamp) => {
-    return timestamp.toLocaleTimeString('zh-CN', { 
+    return timestamp.toLocaleTimeString('en-US', { 
       hour: '2-digit', 
       minute: '2-digit' 
     });
@@ -240,7 +240,7 @@ const ChatBot = ({ onChatToggle }) => {
                     value={inputMessage}
                     onChange={(e) => setInputMessage(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    placeholder="输入你的问题..."
+                    placeholder="Type your question..."
                     className="chat-input"
                     rows={1}
                   />
@@ -252,9 +252,7 @@ const ChatBot = ({ onChatToggle }) => {
                     <Send size={16} />
                   </button>
                 </div>
-                <div className="input-hint">
-                  按 Enter 发送，Shift + Enter 换行
-                </div>
+                <div className="input-hint">Press Enter to send, Shift + Enter for newline</div>
               </div>
             </>
           )}

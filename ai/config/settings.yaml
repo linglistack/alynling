@@ -1,0 +1,22 @@
+paths:
+  params_json: Database_SQL/params
+  params_db: Database_SQL/params.db
+  rag_store: RAG/store
+
+LLM:
+  MODEL_NAME: "qwen3:8b"  # Change to your local/remote model
+  TEMPERATURE: 0.0
+  MAX_TOKENS: 512
+  
+retrieval:
+  embedding_model: "Qwen/Qwen3-Embedding-0.6B"
+
+rerank:
+  rerank_model: "Qwen/Qwen3-Reranker-0.6B"
+
+HuggingFace:
+  access_token: ...
+
+OpenAI:
+  USE_ChatGPT: False  # Keep this False, didn't implement anything when this is True XD
+  Ollama_local_url: "http://localhost:11434/v1"

@@ -1,0 +1,14 @@
+{
+"Synthetic Control": {
+  "explanation": "A method to estimate counterfactual outcomes...",
+  "example": "Used in policy evaluation for California smoking ban."
+},
+"Lift": {
+  "explanation": "The incremental effect of an intervention.",
+  "example": "10% lift in conversions after campaign."
+},
+"Statistical Significance": {
+  "explanation": "A measure of whether an observed effect is unlikely to have occurred by random chance, usually assessed with a p-value against a predefined alpha threshold (e.g., 0.05).",
+  "example": "A p-value of 0.03 indicates statistical significance at the 5% level, suggesting the observed effect is unlikely due to random variation."
+}
+}

@@ -1,0 +1,156 @@
+{
+"Shared": {
+    "data": {
+      "explanation": "Data refers to a data frame(spreadsheet) containing the historical conversions by geographic unit. Must contain at least a 'location' column with the geo name, a 'Y' column with the outcome data (e.g., units), a 'time' column with the indicator of the time period (starting at 1), and optional covariates.",
+      "example": null,
+      "default": null,
+      "omit": false
+    },
+    "Y_id": {
+      "explanation": "Y id is the name of the outcome variable in the data frame(spreadsheet).",
+      "example": "I want to see how sales changes in reaction to ads, so Y_id is the column name for sales.",
+      "default": "Y",
+      "omit": false
+    },
+    "location_id": {
+      "explanation": "Location id is the name of the location variable in the data frame (spreadsheet).",
+      "example": "I want to compare performance across regions, so location_id is the column name for region or market.",
+      "default": "location",
+      "omit": false
+    },
+    "time_id": {
+      "explanation": "Time id is the name of the time variable in the data frame (spreadsheet).",
+      "example": "I want to analyze performance over time, so time_id is the column name for date or week.",
+      "default": "time",
+      "omit": false
+    },
+    "include_markets": {
+      "explanation": "Include_markets is a list of markets that will get the treatment regardless.",
+      "example": "If the ads will air in Chicago regardless, then Chicago should be included in include_markets.",
+      "default": null,
+      "omit": false
+    },
+    "exclude_markets": {
+      "explanation": "Exclude_markets is a list of markets that will NOT get the treatment regardless.",
+      "example": "Since running ads is too expensive in NYC, we don't consider airing ads in NYC. NYC in this case should be included in exclude_markets.",
+      "default": null,
+      "omit": false
+    },
+    "holdout": {
+      "explanation": "Holdout is the proportion of conversions held back to form the control group. A larger holdout creates a stronger baseline but leaves fewer observations for treatment, which lowers power.",
+      "example": "If conversions from 5 locations are (1, 1, 2, 3, 3) and holdout = 0.2, then about 20% must be reserved for control — e.g., using (1, 1) as holdout or alternatively (2).",
+      "default": null,
+      "omit": false
+    },
+    "cpic": {
+      "explanation": "Cost per incremental conversion (CPIC) measures how much budget is required to generate one additional conversion. It is usually estimated from marketing mix models (MMM) or past experiments.",
+      "example": "Sales were $100 per month before running ads. After running $5 of ads, sales rose to be $150 per month. CPIC in this case is 5 / (150-100) = 0.1.",
+      "default": "1",
+      "omit": false
+    },
+    "budget": {
+      "explanation": "Budget refers to the maximum budget available for running the test.",
+      "example": "I have $100 for ads.",
+      "default": null,
+      "omit": false
+    },
+    "alpha": {
+      "explanation": "Alpha is the significance level of the statistical test. It represents the probability of a false positive (concluding there is lift when there is none).",
+      "example": "alpha = 0.1 means there is a 10% chance of wrongly detecting a lift that doesn’t exist.",
+      "default": "0.1",
+      "omit": false
+    },
+    "fixed_effects": {
+      "explanation": "Fixed effects are adjustments in the model that account for stable differences between units (such as markets). They help ensure the comparison focuses on changes over time rather than permanent gaps across units.",
+      "example": "If New York City consistently has higher sales than Watertown, fixed effects absorb this baseline gap so the test only looks at changes caused by the treatment.",
+      "default": "TRUE",
+      "omit": false
+    },
+    "Correlations": {
+      "explanation": "Logical flag to include correlations between test and control markets in output.",
+      "example": "FALSE",
+      "default": "FALSE",
+      "omit": true
+    },
+    "side_of_test": {
+      "explanation": "Side of test refers to whether the confidence test is one-sided or two-sided. A one-sided test only checks for an effect in one direction (for example, only positive lift), while a two-sided test checks for effects in both directions (positive or negative).",
+      "example": "If you only care whether ads increase sales, use a one-sided test. If you also want to know whether ads might decrease sales, use a two-sided test.",
+      "default": "two_sided",
+      "omit": false
+    }
+
+  },
+  "GeoLiftMarketSelection":{
+    "lookback_window": {
+      "explanation": "Lookback window is the number of past simulations used in the power analysis. It shifts the treatment period backward in time to re-run the test and estimate variance in the control group. Large lookback window gives more robust but less precise estimate, and will result in a longer runtime. When we are doing market selection the first time, we can use 1 to find candidate markets quickly.",
+      "example": "For a 90-day series and a test duration of 15 days, setting lookback_window = 2 simulates two treatment periods: days 76–90 (using 1–75 as pre-treatment) and days 75–89 (using 1–74 as pre-treatment). Metrics are then averaged across both runs.",
+      "default": "1",
+      "omit": false
+    },
+    "treatment_periods": {
+      "explanation": "Treatment periods are a list of treatment runtime to calculate power for. Ensures test duration covers at least one purchase cycle.",
+      "example": "If we want to check the power for a 2-day, 1-week, 1-month ad campain, then treatment_periods = (2, 7, 30)",
+      "default": null,
+      "omit": false
+    },
+    "N": {
+      "explanation": "N is the list of test market sizes to evaluate, e.g., number of markets in the test group.",
+      "example": "c(2, 3, 4)",
+      "default": null,
+      "omit": false
+    },
+    "X": {
+      "explanation": "X is the list of names of covariates in the data.",
+      "example": "c('covariate1', 'covariate2')",
+      "default": null,
+      "omit": true
+    },
+    "effect_size": {
+      "explanation": "Effect size is a sequence of relative lifts (percentage improvements) used to simulate power under different scenarios. Smaller lifts (e.g., 5%) are harder to detect and require stronger designs, while larger lifts (e.g., 15%) are easier. Testing a range shows the minimum lift your setup can reliably detect.",
+      "example": "If I want to know whether my design can detect 5%, 10%, or 15% improvements, I set effect_size = (0.05, 0.10, 0.15). The output will show which lifts the design has sufficient power to capture.",
+      "default": "seq(0, 0.25, 0.05)",
+      "omit": false
+    },
+    "model": {
+      "explanation": "Model in the market selection function refers to augmentation model for ASCM.",
+      "example": "he most common values used are: model = None (default) which won’t augment the ASCM and model = Ridge",
+      "default": "Ridge",
+      "omit": true
+    }
+  },
+  "GeoLiftPower":{
+    "lookback_window": {
+      "explanation": "Lookback window is the number of past simulations used in the power analysis. It shifts the treatment period backward in time to re-run the test and estimate variance in the control group. Large lookback window gives more robust but less precise estimate, and will result in a longer runtime. When we are doing a deepdive into one particular experiment setup, we can set lookback window to be 1/10 of the pretreatment time.",
+      "example": "If we have the sales data for 150 days, and the ads aired for 10 days, then we can start with 14 days of lookback_window. ",
+      "default": "7",
+      "omit": false
+    },
+    "locations":{
+      "explanation": "This is the set of locations to run power analysis on. Typically, it is among the top candidates from the MarketSelection function.",
+      "example": null,
+      "default": null,
+      "omit": false
+    }
+  },
+  "GeoLift":{
+    "locations":{
+      "explanation": "This is the set of in-real-life locations that were treated.",
+      "example": null,
+      "default": null,
+      "omit": false
+    },
+    "Treatment_start_time": {
+      "explanation": "This is the time when the treatment starts.",
+      "example": "If the ads started airing on 04/15/2019, then the treatment_start_time = 04/15/2019",
+      "default": null,
+      "omit": false
+    },
+    "Treatment_end_time": {
+      "explanation": "This is the time when the treatment ends.",
+      "example": "If the ads started airing on 06/04/2019, then the treatment_start_time = 06/04/2019",
+      "default": null,
+      "omit": false
+    }
+
+  }
+}
