@@ -20,6 +20,11 @@
   transition: all 0.5s ease;
 }
 
+/* 当左侧侧栏收起时，让主内容贴近最左边 */
+.sidebar-container.slide-out + .main-container {
+  margin-left: 0;
+}
+
 .sidebar-container {
   transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
@@ -29,6 +34,10 @@
 .sidebar-container.slide-out {
   transform: translateX(-100%);
   pointer-events: none;
+  width: 0;
+  flex: 0 0 0;
+  opacity: 0;
+  visibility: hidden;
 }
 
 .main-container.expand {
@@ -37,4 +46,47 @@
   box-shadow: none;
   background-color: transparent;
   transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.main-container.chat-open {
+  margin-right: 33.333vw;
+  transition: margin-right 0.3s ease;
+  margin-left: 0;
+}
+
+.app.full-width .main-container.chat-open {
+  margin-right: 33.333vw;
+  margin-left: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+@media (max-width: 1024px) {
+  .main-container.chat-open {
+    margin-right: 40vw;
+  }
+  
+  .app.full-width .main-container.chat-open {
+    margin-right: 40vw;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-container.chat-open {
+    margin-right: 50vw;
+  }
+  
+  .app.full-width .main-container.chat-open {
+    margin-right: 50vw;
+  }
+}
+
+@media (max-width: 640px) {
+  .main-container.chat-open {
+    display: none;
+  }
+  
+  .sidebar-container.chat-open {
+    display: none;
+  }
 }

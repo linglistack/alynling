@@ -12,6 +12,7 @@ import Integrations from './components/Integrations';
 import IntegrationDetail from './components/IntegrationDetail';
 import Blog from './components/Blog';
 import FAQs from './components/FAQs';
+import ChatBot from './components/ChatBot';
 import './App.css';
 
 function App() {
@@ -26,6 +27,7 @@ function App() {
   const [selectedExperiment, setSelectedExperiment] = useState(null);
   const [selectedModel, setSelectedModel] = useState(null);
   const [selectedIntegration, setSelectedIntegration] = useState(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const handleCreateExperiment = () => {
     setShowExperimentSetup(true);
@@ -75,6 +77,10 @@ function App() {
     setSelectedExperiment(null);
   };
 
+  const handleChatToggle = (isOpen) => {
+    setIsChatOpen(isOpen);
+  };
+
   // Clear experiment detail when navigating away from experiments
   useEffect(() => {
     if (activeMenuItem !== 'experiments') {
@@ -99,11 +105,16 @@ function App() {
     }
   }, [activeMenuItem]);
 
+  // 当左侧导航发生交互或视图切换时，自动收起右侧面板
+  useEffect(() => {
+    setIsChatOpen(false);
+  }, [activeMenuItem, expandedMenu, showExperimentSetup, showDataIngestion, showModelCreation, showMMMDetail, showIntegrationDetail, showExperimentDetail]);
+
   const isFullScreen = showExperimentSetup || showDataIngestion || showModelCreation;
 
   return (
     <div className={`app ${isFullScreen ? 'full-width' : ''}`}>
-      <div className={`sidebar-container ${isFullScreen ? 'slide-out' : ''}`}>
+      <div className={`sidebar-container ${isFullScreen || isChatOpen ? 'slide-out' : ''} ${isChatOpen ? 'chat-open' : ''}`}>
         <Sidebar 
           activeMenuItem={activeMenuItem}
           setActiveMenuItem={setActiveMenuItem}
@@ -111,7 +122,7 @@ function App() {
           setExpandedMenu={setExpandedMenu}
         />
       </div>
-      <div className={`main-container ${isFullScreen ? 'expand' : ''}`}>
+      <div className={`main-container ${isFullScreen ? 'expand' : ''} ${isChatOpen ? 'chat-open' : ''}`}>
         {showExperimentSetup ? (
           <ExperimentSetup onBack={handleBackToMain} />
         ) : showDataIngestion ? (
@@ -142,6 +153,9 @@ function App() {
           />
         )}
       </div>
+      
+      {/* ChatBot组件 - 全局显示 */}
+      <ChatBot onChatToggle={handleChatToggle} />
     </div>
   );
 }
