@@ -343,6 +343,17 @@ const ConfigureExperiment = ({
     return parts.length > 0 ? parts : [0, 0.05, 0.1, 0.15, 0.2, 0.25];
   }, [cells]);
 
+  const holdout = useMemo(() => {
+    const firstCell = cells[0];
+    const holdoutMin = Number(firstCell?.advanced?.holdoutMin);
+    const holdoutMax = Number(firstCell?.advanced?.holdoutMax);
+    // Convert from percentage to decimal (50% -> 0.5, 100% -> 1.0)
+    const min = Number.isFinite(holdoutMin) && holdoutMin >= 0 && holdoutMin <= 100 ? holdoutMin / 100 : 0.5;
+    const max = Number.isFinite(holdoutMax) && holdoutMax >= 0 && holdoutMax <= 100 ? holdoutMax / 100 : 1.0;
+    // Ensure min <= max
+    return [Math.min(min, max), Math.max(min, max)];
+  }, [cells]);
+
   // Progress simulation for manual runs
   const simulateProgress = () => {
     setManualProgress(0);
@@ -395,6 +406,7 @@ const ConfigureExperiment = ({
         alpha,
         budget,
         numTestGeos,
+        holdout,
         dataRows: Array.isArray(dataToUse) ? dataToUse.length : undefined,
         locationFilters: {
           includedLocations: currentCellLocations.included,
@@ -412,6 +424,7 @@ const ConfigureExperiment = ({
         alpha,
         budget,
         numTestGeos,
+        holdout,
         includedLocations: currentCellLocations.included,
         excludedLocations: currentCellLocations.excluded
       });
@@ -442,6 +455,7 @@ const ConfigureExperiment = ({
             lookbackWindow,
             cpic,
             alpha,
+            holdout,
             dataLength: Array.isArray(processedData) ? processedData.length : 0,
             locationFilters: JSON.stringify(currentCellLocations)
           }
@@ -464,6 +478,7 @@ const ConfigureExperiment = ({
             lookbackWindow,
             cpic,
             alpha,
+            holdout,
             dataLength: Array.isArray(processedData) ? processedData.length : 0,
             locationFilters: JSON.stringify(currentCellLocations)
           }
@@ -997,6 +1012,7 @@ const ConfigureExperiment = ({
                       loading={rowAnalysisLoadingState[rowKey]}
                       error={rowAnalysisErrorsState[rowKey]}
                       experimentLength={Number(experimentLength)}
+                      timeMapping={geoDataReadResponse?.time_mapping}
                     />
                   );
                 };

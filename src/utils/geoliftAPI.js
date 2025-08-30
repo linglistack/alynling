@@ -93,6 +93,7 @@ export const geoliftAPI = {
       alpha = 0.1,
       budget = 100000,
       numTestGeos = 2,
+      holdout = [0.5, 1.0],
       includedLocations = [],
       excludedLocations = []
     } = options;
@@ -105,6 +106,7 @@ export const geoliftAPI = {
       cpic,
       alpha,
       budget,
+      holdout,
       N: Array.from({length: numTestGeos - 1}, (_, i) => i + 2), // Convert to range: [2, 3, ..., numTestGeos]
       include_markets: includedLocations,
       exclude_markets: excludedLocations
@@ -118,6 +120,7 @@ export const geoliftAPI = {
       include_markets: includedLocations,
       exclude_markets: excludedLocations,
       budget,
+      holdout,
       N: requestBody.N,
       numTestGeos_original: numTestGeos
     });

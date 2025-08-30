@@ -330,7 +330,8 @@ const ExperimentSetup = ({ onBack }) => {
           lookbackWindow: 1,
           cpic: 1,
           alpha: 0.1,
-          budget: 150000
+          budget: 150000,
+          holdout: [0.5, 1.0]  // Already in decimal format for API
         };
         
         const resp = await geoliftAPI.marketSelection(geoDataResult.data, defaultParams);
@@ -352,6 +353,7 @@ const ExperimentSetup = ({ onBack }) => {
               lookbackWindow: defaultParams.lookbackWindow,
               cpic: defaultParams.cpic,
               alpha: defaultParams.alpha,
+              holdout: defaultParams.holdout,
               dataLength: geoDataResult.data.length,
               budget: defaultParams.budget
             }

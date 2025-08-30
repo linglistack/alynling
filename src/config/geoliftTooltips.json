@@ -31,5 +31,13 @@
         "question": "How strict should the decision be (confidence level)?",
         "example": "90% (alpha 0.10) is faster; 95% (alpha 0.05) is stricter evidence.",
         "defaults": 0.10
+    },
+    "holdout": {
+        "question": "What range of holdout proportions should be considered?",
+        "example": "50%-100% means test 50% to 100% of available markets. Lower values leave more markets as holdouts.",
+        "defaults": [
+            50,
+            100
+        ]
     }
 }

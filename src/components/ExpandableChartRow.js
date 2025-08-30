@@ -17,12 +17,23 @@ const ExpandableChartRow = ({
   onToggle,
   loading = false,
   error = null,
-  experimentLength = 28 // Days for treatment period
+  experimentLength = 28, // Days for treatment period
+  timeMapping = null // Time to date mapping
 }) => {
   const chartObservationsRef = useRef(null);
   const chartPowerRef = useRef(null);
   const chartObservations = useRef(null);
   const chartPower = useRef(null);
+
+  // Helper function to convert time period to date
+  const getDateFromTime = (timePeriod) => {
+    if (!timeMapping || !Array.isArray(timeMapping)) {
+      return `Time ${timePeriod}`;
+    }
+    
+    const timeEntry = timeMapping.find(entry => entry.time === timePeriod);
+    return timeEntry ? timeEntry.date : `Time ${timePeriod}`;
+  };
 
   // Render charts when data is available and row is expanded
   useEffect(() => {
@@ -97,6 +108,38 @@ const ExpandableChartRow = ({
             },
             yAxis: { 
               title: { text: 'Observations' }
+            },
+            tooltip: {
+              shared: true,
+              formatter: function() {
+                const timePeriod = times[this.x];
+                const actualDate = getDateFromTime(timePeriod);
+                
+                // Get treatment and control values for this time period
+                const treatmentValue = byGroup.Treatment && byGroup.Treatment[timePeriod] != null ? Number(byGroup.Treatment[timePeriod]) : null;
+                const controlValue = byGroup.Control && byGroup.Control[timePeriod] != null ? Number(byGroup.Control[timePeriod]) : null;
+                
+                // Calculate difference (treatment - control)
+                const difference = (treatmentValue != null && controlValue != null) ? treatmentValue - controlValue : null;
+                
+                let tooltipContent = `<b>Date: ${actualDate}</b><br/>`;
+                tooltipContent += `<b>Time Period: ${timePeriod}</b><br/><br/>`;
+                
+                if (treatmentValue != null) {
+                  tooltipContent += `<span style="color:#667eea">●</span> Treatment: <b>${treatmentValue.toLocaleString()}</b><br/>`;
+                }
+                
+                if (controlValue != null) {
+                  tooltipContent += `<span style="color:#6b7280">●</span> Control: <b>${controlValue.toLocaleString()}</b><br/>`;
+                }
+                
+                if (difference != null) {
+                  const diffColor = difference >= 0 ? '#10b981' : '#ef4444';
+                  tooltipContent += `<br/><span style="color:${diffColor}">●</span> Difference: <b style="color:${diffColor}">${difference >= 0 ? '+' : ''}${difference.toLocaleString()}</b>`;
+                }
+                
+                return tooltipContent;
+              }
             },
             series: observationsSeries,
             legend: { enabled: true },
