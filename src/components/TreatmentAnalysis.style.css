@@ -295,6 +295,39 @@
     width: 100%;
 }
 
+.analysis-summary {
+    margin-bottom: 20px;
+    padding: 16px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.summary-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+}
+
+.summary-value {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.summary-value.significant {
+    color: #059669;
+}
+
+.summary-value.not-significant {
+    color: #dc2626;
+}
+
 /* Test Statistics Section */
 .test-statistics-section {
     background: #1e293b;

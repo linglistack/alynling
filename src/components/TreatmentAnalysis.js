@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './TreatmentAnalysis.style.css';
 import LocationSelectionModal from './LocationSelectionModal';
+import VariationSelector from './VariationSelector';
 import { geoliftAPI } from '../utils/geoliftAPI';
 
 const loadHighcharts = () => new Promise((resolve, reject) => {
@@ -17,7 +18,8 @@ const TreatmentAnalysis = ({
   processedData,
   geoDataReadResponse,
   availableLocations = [],
-  onBack = null 
+  onBack = null,
+  userConfig = {}
 }) => {
   // Form inputs - now using calendar dates
   const [treatmentStartDate, setTreatmentStartDate] = useState('');
@@ -38,8 +40,11 @@ const TreatmentAnalysis = ({
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisError, setAnalysisError] = useState('');
   const [analysisResult, setAnalysisResult] = useState(null);
+  
+  // Variation selection state
+  const [selectedVariation, setSelectedVariation] = useState(null);
 
-  // Chart refs
+  // Chart refs (keeping for potential future use)
   const chartLiftRef = useRef(null);
   const chartATTRef = useRef(null);
   const chartLift = useRef(null);
@@ -234,14 +239,23 @@ const TreatmentAnalysis = ({
         });
 
         // Call the GeoLift API for final analysis using GeoDataRead response data and converted time periods
-        const result = await geoliftAPI.geoLiftWithGeoData(geoDataReadResponse, {
+        console.log('[TreatmentAnalysis] User config being sent to API:', userConfig);
+        const apiParams = {
           locations: selectedLocations.included,
           treatmentStartTime,
           treatmentEndTime,
           alpha,
           fixedEffects: true,
-          model: "best"
-        });
+          model: "best",
+          // Pass user configuration for dynamic calculations
+          test_budget: userConfig.testBudget || 15000,
+          treatment_periods: userConfig.treatmentPeriods || 28,
+          num_test_geos: userConfig.numTestGeos || 2,
+          cpic: userConfig.cpic || 1,
+          effect_size: userConfig.effectSize || 0.1
+        };
+        console.log('[TreatmentAnalysis] API parameters being sent:', apiParams);
+        const result = await geoliftAPI.geoLiftWithGeoData(geoDataReadResponse, apiParams);
         
         console.log('[TreatmentAnalysis] GeoLift analysis result:', result);
         setAnalysisResult(result);
@@ -280,7 +294,9 @@ const TreatmentAnalysis = ({
     }
   };
 
-  // Render charts when analysis result is available
+  // Charts are now rendered within VariationSelector component
+  // Keeping this useEffect commented for potential future use
+  /*
   useEffect(() => {
     if (!analysisResult || analysisLoading || analysisError) return;
     
@@ -293,9 +309,18 @@ const TreatmentAnalysis = ({
 
         // Lift chart removed as requested
 
+        // Get data source - use variation-specific data if available, otherwise fall back to main data
+        let attData = null;
+        if (analysisResult.variations && analysisResult.variations[selectedVariation] && analysisResult.variations[selectedVariation].chart_data) {
+          attData = analysisResult.variations[selectedVariation].chart_data;
+          console.log('[TreatmentAnalysis] Using variation-specific chart data for:', selectedVariation);
+        } else if (analysisResult.att_data) {
+          attData = analysisResult.att_data;
+          console.log('[TreatmentAnalysis] Using default chart data');
+        }
+
         // Render ATT chart if data is available
-        if (analysisResult.att_data && chartATTRef.current) {
-          const attData = analysisResult.att_data;
+        if (attData && chartATTRef.current) {
           const times = attData.time || [];
           const attValues = attData.att || [];
           
@@ -432,7 +457,8 @@ const TreatmentAnalysis = ({
         chartATT.current = null;
       }
     };
-  }, [analysisResult, analysisLoading, analysisError, treatmentStartDate, treatmentEndDate, geoDataReadResponse]);
+  }, [analysisResult, analysisLoading, analysisError, treatmentStartDate, treatmentEndDate, geoDataReadResponse, selectedVariation]);
+  */
 
   return (
     <div className="treatment-analysis">
@@ -550,50 +576,34 @@ const TreatmentAnalysis = ({
                 <div className="results-error">{analysisError}</div>
               ) : analysisResult ? (
                 <div className="analysis-results-content">
-                  {/* Test Statistics */}
+                  {/* Quick Summary */}
                   {analysisResult.summary && (
-                    <div className="test-statistics-section">
-                      <div className="test-statistics">
-                        <div className="stats-header">
-                          <div className="stats-title">##### GeoLift Results #####</div>
-                          <div className="stats-border">##########################################</div>
-                        </div>
-                        <div className="stats-content">
-                          {analysisResult.summary.average_lift && (
-                            <div className="stat-item">
-                              <span className="stat-label">★ Average Lift:</span>
-                              <span className="stat-value">{Number(analysisResult.summary.average_lift).toFixed(3)}</span>
-                            </div>
-                          )}
-                          {analysisResult.summary.percent_lift && (
-                            <div className="stat-item">
-                              <span className="stat-label">★ Percent Lift:</span>
-                              <span className="stat-value">{Number(analysisResult.summary.percent_lift).toFixed(1)}%</span>
-                            </div>
-                          )}
-                          {analysisResult.summary.p_value && (
-                            <div className="stat-item">
-                              <span className="stat-label">★ P-value:</span>
-                              <span className="stat-value">{Number(analysisResult.summary.p_value).toFixed(3)}</span>
-                            </div>
-                          )}
-                          {analysisResult.summary.incremental_y && (
-                            <div className="stat-item">
-                              <span className="stat-label">★ Incremental Y:</span>
-                              <span className="stat-value">{Number(analysisResult.summary.incremental_y).toFixed(0)}</span>
-                            </div>
-                          )}
-                        </div>
+                    <div className="analysis-summary">
+                      <div className="summary-item">
+                        <span className="summary-label">Overall Effect:</span>
+                        <span className={`summary-value ${analysisResult.summary.is_significant ? 'significant' : 'not-significant'}`}>
+                          {analysisResult.summary.percent_lift ? 
+                            `${Number(analysisResult.summary.percent_lift).toFixed(1)}% lift` : 
+                            'No effect detected'}
+                          {analysisResult.summary.is_significant ? ' (Significant)' : ' (Not Significant)'}
+                        </span>
                       </div>
                     </div>
                   )}
 
-                  {/* ATT Chart */}
-                  <div className="analysis-charts">
-                    <div className="chart-container" style={{ width: '100%' }}>
-                      <div ref={chartATTRef} style={{ width: '100%', height: 400 }} />
-                    </div>
-                  </div>
+                  {/* Variation Selector */}
+                  {analysisResult.variations && (
+                    <VariationSelector
+                      variations={analysisResult.variations}
+                      selectedVariation={selectedVariation}
+                      onVariationSelect={setSelectedVariation}
+                      treatmentStartDate={treatmentStartDate}
+                      treatmentEndDate={treatmentEndDate}
+                      geoDataReadResponse={geoDataReadResponse}
+                    />
+                  )}
+
+
                 </div>
               ) : (
                 <div className="results-placeholder">

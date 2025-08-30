@@ -46,11 +46,27 @@ const ConfigureExperiment = ({
   rowAnalysisLoading,
   onRowAnalysisLoadingChange,
   rowAnalysisErrors,
-  onRowAnalysisErrorsChange
+  onRowAnalysisErrorsChange,
+  experimentCells,
+  onExperimentCellsChange
 }) => {
   const [experimentName, setExperimentName] = useState('');
   const [numExperiments, setNumExperiments] = useState(1);
-  const [cells, setCells] = useState([makeEmptyCell(0)]);
+  
+  // Use persistent cells state from parent, initialize if not provided
+  const cells = experimentCells || [makeEmptyCell(0)];
+  const setCells = (newCells) => {
+    if (onExperimentCellsChange) {
+      onExperimentCellsChange(newCells);
+    }
+  };
+  
+  // Initialize cells in parent if not already set
+  useEffect(() => {
+    if (!experimentCells && onExperimentCellsChange) {
+      onExperimentCellsChange([makeEmptyCell(0)]);
+    }
+  }, [experimentCells, onExperimentCellsChange]);
 
   // Use parent step if provided, otherwise use internal step
   const currentStep = parentCurrentStep;
@@ -304,7 +320,14 @@ const ConfigureExperiment = ({
   const budget = useMemo(() => {
     const firstCell = cells[0];
     const n = Number(firstCell?.advanced?.testAmount);
-    return Number.isFinite(n) && n > 0 ? n : 150000;
+    const result = Number.isFinite(n) && n > 0 ? n : 15000;  // Match CellAdvancedConfig default
+    console.log('[ConfigureExperiment] Budget calculation:', {
+      firstCell: firstCell,
+      testAmount: firstCell?.advanced?.testAmount,
+      parsed: n,
+      result: result
+    });
+    return result;
   }, [cells]);
 
   const numTestGeos = useMemo(() => {
@@ -590,6 +613,14 @@ const ConfigureExperiment = ({
         geoDataReadResponse={geoDataReadResponse}
         availableLocations={availableLocations}
         onBack={() => {/* Will be handled by parent ExperimentSetup */}}
+        userConfig={{
+          testBudget: budget,
+          treatmentPeriods: treatmentPeriods,
+          numTestGeos: numTestGeos,
+          cpic: cpic,
+          effectSize: effectSize[1] || 0.1, // Use first non-zero effect size
+          alpha: alpha
+        }}
       />
     );
   }
@@ -712,7 +743,10 @@ const ConfigureExperiment = ({
                   'rank', 'ranking', 'location', 'locations', 'markets', 'test_markets',
                   'effect_size', 'effectsize', 'effect',
                   'average_att', 'att', 'avg_att', 'average_effect',
-                  'investment', 'budget', 'cost'
+                  'investment', 'budget', 'cost',
+                  'correlation', 'corr', 'cor',
+                  'holdout', 'Holdout', 'holdout_size',
+                  'duration', 'Duration', 'duration_days'
                 ];
 
                 // Create a mapping of API keys to their categories, then filter in priority order
@@ -759,7 +793,16 @@ const ConfigureExperiment = ({
                     'average_effect': 'Average ATT',
                     'investment': 'Investment',
                     'budget': 'Investment',
-                    'cost': 'Investment'
+                    'cost': 'Investment',
+                    'correlation': 'Correlation',
+                    'corr': 'Correlation',
+                    'cor': 'Correlation',
+                    'holdout': 'Holdout',
+                    'Holdout': 'Holdout',
+                    'holdout_size': 'Holdout',
+                    'duration': 'Duration',
+                    'Duration': 'Duration',
+                    'duration_days': 'Duration'
                   };
                   
                   const lowerKey = k.toLowerCase();
@@ -782,6 +825,15 @@ const ConfigureExperiment = ({
                     }
                     if (/effect|att/i.test(key)) {
                       return v.toFixed(3);
+                    }
+                    if (/correlation|corr|cor/i.test(key)) {
+                      return v.toFixed(3);
+                    }
+                    if (/holdout|Holdout|holdout_size/i.test(key)) {
+                      return (v * 100).toFixed(1) + '%';
+                    }
+                    if (/duration|Duration|duration_days/i.test(key)) {
+                      return v + ' days';
                     }
                     return v.toLocaleString();
                   }
@@ -849,7 +901,7 @@ const ConfigureExperiment = ({
                 // Create Ant Design table columns
                 const columns = filteredKeys.map((key, index) => {
                   const title = getColumnTitle(key);
-                  const isNumeric = /number|rank|effect|att|investment|budget|cost/i.test(key);
+                  const isNumeric = /number|rank|effect|att|investment|budget|cost|correlation|corr|cor|holdout|Holdout|holdout_size|duration|Duration|duration_days/i.test(key);
 
                   const defaultWidth = calculateColumnWidth(key, title, dataSource);
                   const width = columnWidths[key] || defaultWidth;

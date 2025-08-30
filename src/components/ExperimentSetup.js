@@ -44,6 +44,9 @@ const ExperimentSetup = ({ onBack }) => {
   const [rowAnalysisData, setRowAnalysisData] = useState({});
   const [rowAnalysisLoading, setRowAnalysisLoading] = useState({});
   const [rowAnalysisErrors, setRowAnalysisErrors] = useState({});
+  
+  // Experiment configuration state - persisted across step navigation
+  const [experimentCells, setExperimentCells] = useState(null); // Will be initialized in ConfigureExperiment
 
   // Shared data processing function
   const processDataForAPI = (data, colMappings) => {
@@ -559,6 +562,8 @@ const ExperimentSetup = ({ onBack }) => {
               onRowAnalysisLoadingChange={setRowAnalysisLoading}
               rowAnalysisErrors={rowAnalysisErrors}
               onRowAnalysisErrorsChange={setRowAnalysisErrors}
+              experimentCells={experimentCells}
+              onExperimentCellsChange={setExperimentCells}
             />
           </>
         )}
@@ -593,6 +598,8 @@ const ExperimentSetup = ({ onBack }) => {
               onRowAnalysisLoadingChange={setRowAnalysisLoading}
               rowAnalysisErrors={rowAnalysisErrors}
               onRowAnalysisErrorsChange={setRowAnalysisErrors}
+              experimentCells={experimentCells}
+              onExperimentCellsChange={setExperimentCells}
             />
           </>
         )}
