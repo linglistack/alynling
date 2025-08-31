@@ -239,6 +239,11 @@
   color: white;
 }
 
+.message.hypothesis .message-avatar {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  color: white;
+}
+
 .message-content {
   flex: 1;
   max-width: 70%;
@@ -418,6 +423,60 @@
   color: #6b7280;
   margin-top: 8px;
   text-align: center;
+}
+
+/* 动态假设消息样式 */
+.hypothesis-message {
+  width: 100%;
+}
+
+.dynamic-hypothesis-container {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 1px solid #bae6fd;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 12px 0 8px 0;
+  position: relative;
+  overflow: visible;
+  min-width: 300px;
+  width: auto;
+}
+
+.dynamic-hypothesis-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #06b6d4 100%);
+}
+
+.dynamic-hypothesis-container .dynamic-hypothesis {
+  margin: 0;
+}
+
+.dynamic-hypothesis-container .hypothesis-text {
+  font-size: 14px;
+  line-height: 1.4;
+  margin-bottom: 16px;
+  min-width: 280px;
+  max-width: 100%;
+  word-wrap: break-word;
+}
+
+.dynamic-hypothesis-container .hypothesis-subtitle {
+  font-size: 11px;
+  margin-top: 8px;
+}
+
+.dynamic-hypothesis-container .use-hypothesis-btn {
+  font-size: 13px;
+  padding: 6px 12px;
+}
+
+.dynamic-hypothesis-container .click-hint {
+  font-size: 10px;
 }
 
 /* 响应式设计 */

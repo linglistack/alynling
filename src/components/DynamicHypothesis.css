@@ -1,0 +1,184 @@
+.dynamic-hypothesis {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.dynamic-hypothesis:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.hypothesis-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: #4b5563;
+  line-height: 1.5;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60px;
+  width: 100%;
+  padding: 0 8px;
+}
+
+.full-sentence {
+  white-space: normal;
+  display: inline-block;
+  max-width: 100%;
+  word-wrap: break-word;
+  text-align: center;
+}
+
+.animated-text {
+  font-weight: 600;
+  transition: all 0.4s ease-in-out;
+  display: inline-block;
+}
+
+.animated-text.visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.animated-text.hidden {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.95);
+}
+
+.animated-text.platform {
+  color: #7c3aed;
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.animated-text.metric {
+  color: #059669;
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* 移除不需要的动画样式，因为现在整个句子一起动画 */
+
+.hypothesis-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.use-hypothesis-btn {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.use-hypothesis-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.use-hypothesis-btn:active {
+  transform: translateY(0);
+}
+
+.click-hint {
+  font-size: 11px;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.hypothesis-subtitle {
+  font-size: 12px;
+  color: #6b7280;
+  font-style: italic;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 添加一些微妙的动画效果 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animated-text.visible {
+  animation: fadeInUp 0.4s ease-out;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .hypothesis-text {
+    font-size: 14px;
+  }
+  
+  .animated-text {
+    min-width: 100px;
+  }
+  
+  .hypothesis-subtitle {
+    font-size: 11px;
+  }
+}
+
+/* 针对不同平台的特殊颜色 */
+.animated-text.platform.tiktok {
+  background: linear-gradient(135deg, #ff0050 0%, #ff4081 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.animated-text.platform.pinterest {
+  background: linear-gradient(135deg, #bd081c 0%, #e60023 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.animated-text.platform.snapchat {
+  background: linear-gradient(135deg, #fffc00 0%, #fff200 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.animated-text.platform.google {
+  background: linear-gradient(135deg, #4285f4 0%, #ea4335 50%, #fbbc05 75%, #34a853 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.animated-text.platform.youtube {
+  background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.animated-text.platform.meta {
+  background: linear-gradient(135deg, #1877f2 0%, #42a5f5 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}

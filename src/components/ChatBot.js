@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, User, Bot, Minimize2, Maximize2 } from 'lucide-react';
+import DynamicHypothesis from './DynamicHypothesis';
 import './ChatBot.css';
 
 const ChatBot = ({ onChatToggle }) => {
@@ -8,8 +9,8 @@ const ChatBot = ({ onChatToggle }) => {
   const [messages, setMessages] = useState([
     {
       id: 1,
-      type: 'bot',
-      content: "Hi! I'm Alyn Copilot. I can help you navigate features, answer experiment questions, or assist with data analysis. What would you like to do?",
+      type: 'hypothesis',
+      content: "Here's an example of dynamic test hypotheses to inspire your experiments:",
       timestamp: new Date()
     }
   ]);
@@ -119,6 +120,31 @@ const ChatBot = ({ onChatToggle }) => {
     }
   };
 
+  const handleHypothesisClick = (hypothesis) => {
+    // 用户选择了一个假设，添加为用户消息
+    const userMessage = {
+      id: Date.now(),
+      type: 'user',
+      content: `我想测试这个假设: "${hypothesis}"`,
+      timestamp: new Date()
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
+    setIsTyping(true);
+
+    // 机器人回应
+    setTimeout(() => {
+      const botResponse = {
+        id: Date.now() + 1,
+        type: 'bot',
+        content: `很好的选择！基于假设 "${hypothesis}"，我建议您：\n\n1. 确定测试市场和控制市场\n2. 设置最小可检测效应\n3. 确定测试持续时间\n4. 配置实验参数\n\n您想从哪一步开始？我可以帮您创建这个实验。`,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, botResponse]);
+      setIsTyping(false);
+    }, 1500);
+  };
+
   const formatTime = (timestamp) => {
     return timestamp.toLocaleTimeString('en-US', { 
       hour: '2-digit', 
@@ -189,14 +215,30 @@ const ChatBot = ({ onChatToggle }) => {
                       )}
                     </div>
                     <div className="message-content">
-                      <div className="message-text">
-                        {message.content.split('\n').map((line, index) => (
-                          <p key={index}>{line}</p>
-                        ))}
-                      </div>
-                      <div className="message-time">
-                        {formatTime(message.timestamp)}
-                      </div>
+                      {message.type === 'hypothesis' ? (
+                        <div className="hypothesis-message">
+                          <div className="message-text">
+                            <p>{message.content}</p>
+                          </div>
+                          <div className="dynamic-hypothesis-container">
+                            <DynamicHypothesis onHypothesisClick={handleHypothesisClick} />
+                          </div>
+                          <div className="message-time">
+                            {formatTime(message.timestamp)}
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="message-text">
+                            {message.content.split('\n').map((line, index) => (
+                              <p key={index}>{line}</p>
+                            ))}
+                          </div>
+                          <div className="message-time">
+                            {formatTime(message.timestamp)}
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}

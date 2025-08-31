@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, BookOpen, CheckCircle, Trash2, ChevronLeft, ChevronRight, BarChart3, Calendar } from 'lucide-react';
+import { Plus, Trash2, ChevronLeft, ChevronRight, BarChart3, Calendar } from 'lucide-react';
 import './MainContent.css';
 
 const MainContent = ({ onCreateExperiment, onAnalyzeExperiment, onExperimentClick }) => {

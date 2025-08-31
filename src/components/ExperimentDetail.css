@@ -172,6 +172,23 @@
     margin: 0;
 }
 
+/* 动态假设组件样式调整 */
+.hypothesis-section .dynamic-hypothesis {
+    margin-top: 12px;
+}
+
+.hypothesis-section .dynamic-hypothesis .hypothesis-text {
+    font-size: 16px;
+    color: #1f2937;
+    font-weight: 500;
+}
+
+.hypothesis-section .dynamic-hypothesis .hypothesis-subtitle {
+    color: #6b7280;
+    font-size: 13px;
+    margin-top: 8px;
+}
+
 .experiment-metrics {
     margin-bottom: 32px;
 }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ArrowLeft, ChevronDown, Info } from 'lucide-react';
+import { ArrowLeft, Info } from 'lucide-react';
+import DynamicHypothesis from './DynamicHypothesis';
 import './ExperimentDetail.css';
 
 const ExperimentDetail = ({ experiment, onBack }) => {
@@ -172,7 +173,7 @@ const ExperimentDetail = ({ experiment, onBack }) => {
               
               <div className="hypothesis-section">
                 <h4>Hypothesis</h4>
-                <p>{experimentData.hypothesis}</p>
+                <DynamicHypothesis />
               </div>
 
               <div className="experiment-metrics">
