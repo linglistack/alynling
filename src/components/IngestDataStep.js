@@ -3,6 +3,7 @@ import { ArrowLeft, Info } from 'lucide-react';
 import './DataIngestionForm.css';
 import './ConfigureExperiment.css';
 import './IngestDataStep.style.css';
+import { selectQuantileLocations, processDataForQuantileSelection } from '../utils/quantileLocationSelection';
 
 // Reusable Step 1: Ingest Data component
 // Supports both controlled (via props) and uncontrolled (internal state) usage
@@ -55,15 +56,17 @@ const IngestDataStep = ({
   const [internalTestLocations, setInternalTestLocations] = useState('');
   const [internalIsDataIngested, setInternalIsDataIngested] = useState(false);
 
-  // Post-upload options state
-  const [trimMostlyZero, setTrimMostlyZero] = useState(false);
-  const [clipOutliers, setClipOutliers] = useState(false);
-  const [trimToLastEnabled, setTrimToLastEnabled] = useState(false);
-  const [trimToLastDays, setTrimToLastDays] = useState('30');
-  const [checkProblems, setCheckProblems] = useState(false);
-  const [removedLocations, setRemovedLocations] = useState([]);
-  const [removeDropdownOpen, setRemoveDropdownOpen] = useState(false);
-  const pillContainerRef = useRef(null);
+  // Date range filter state
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  
+  // Chart location management state
+  // enabledLocations: Array of location names that are currently visible in the chart
+  // Initially populated with 5 locations selected using quantile-based algorithm from R logic
+  const [enabledLocations, setEnabledLocations] = useState([]);
+  const [addLocationInput, setAddLocationInput] = useState('');
+  const [addLocationDropdownOpen, setAddLocationDropdownOpen] = useState(false);
+  const addLocationContainerRef = useRef(null);
 
   // Plot toggle: combined Highcharts line
   const [combinedLinePlot, setCombinedLinePlot] = useState(true);
@@ -284,6 +287,25 @@ const IngestDataStep = ({
       const uniqueLocations = [...new Set(processedRows.map(row => row.location))].sort();
       setAvailableLocations(uniqueLocations);
       
+      // Select initial 5 locations using quantile logic (based on R logic from Representitive Cities.R)
+      // This selects representative locations across the distribution of outcome values
+      const quantileData = processedRows.map(row => ({
+        location: row.location,
+        outcome: row.outcome,
+        date: row.standardizedDate
+      }));
+      
+      const initialLocations = selectQuantileLocations(quantileData, {
+        n: 5,
+        target: 'outcome',
+        method: 'mean',
+        locationColumn: 'location'
+      });
+      
+      console.log('Selected initial locations using quantile algorithm:', initialLocations);
+      
+      setEnabledLocations(initialLocations);
+      
       // Mark as successfully ingested
       setIsDataIngested(true);
       console.log('Data ingested successfully:', {
@@ -340,9 +362,9 @@ const IngestDataStep = ({
       }
     }
 
-    // Compute available locations using detected column
+    // Compute available locations using detected column (convert to lowercase for consistency)
     const uniqueLocations = locIdx !== -1
-      ? [...new Set(rows.map(row => row[locIdx] || ''))].filter(Boolean).sort()
+      ? [...new Set(rows.map(row => (row[locIdx] || '').trim().toLowerCase()))].filter(Boolean).sort()
       : [];
 
     // Persist parsed data
@@ -377,6 +399,9 @@ const IngestDataStep = ({
       
       // Reset data ingestion state
       setIsDataIngested(false);
+      setEnabledLocations([]);
+      setStartDate('');
+      setEndDate('');
       
       // Reset to data tab to show the uploaded table
       setActiveTab('data');
@@ -394,6 +419,9 @@ const IngestDataStep = ({
       setAvailableLocations([]);
       setSelectedTestLocations([]);
       setTestLocations('');
+      setEnabledLocations([]);
+      setStartDate('');
+      setEndDate('');
       
       // Reset mapping fields when no file
       setLocationColumn('');
@@ -423,24 +451,106 @@ const IngestDataStep = ({
     }
   };
 
-  const toggleLocationRemoval = (loc) => {
-    if (removedLocations.includes(loc)) {
-      setRemovedLocations(removedLocations.filter(l => l !== loc));
-    } else {
-      setRemovedLocations([...removedLocations, loc]);
+  const addLocationToChart = (locationName) => {
+    if (!enabledLocations.includes(locationName)) {
+      setEnabledLocations(prev => [...prev, locationName]);
     }
+    setAddLocationInput('');
+    setAddLocationDropdownOpen(false);
+  };
+
+  const handleAddLocationInputChange = (e) => {
+    const value = e.target.value;
+    setAddLocationInput(value);
+    setAddLocationDropdownOpen(value.length > 0);
+  };
+
+  const getFilteredAvailableLocations = () => {
+    if (!addLocationInput) return [];
+    return availableLocations.filter(loc => 
+      !enabledLocations.includes(loc) &&
+      loc.toLowerCase().includes(addLocationInput.toLowerCase())
+    );
+  };
+
+  // Function to filter file data rows based on date range
+  const getFilteredFileData = () => {
+    if (!fileData || (!startDate && !endDate)) {
+      return fileData; // Return original data if no filters
+    }
+
+    const headers = fileData.headers.map(h => String(h).trim().toLowerCase());
+    const idxDate = headers.indexOf(dateColumn.trim().toLowerCase());
+    
+    if (idxDate === -1) {
+      console.warn('Date column not found for filtering:', dateColumn);
+      return fileData; // Return original data if date column not found
+    }
+
+    const filteredRows = fileData.rows.filter(row => {
+      const dateStr = (row[idxDate] || '').trim();
+      if (!dateStr) return false;
+
+      // Parse the date using the user's specified format
+      const parsedDate = parseDate(dateStr, dateFormat);
+      if (!parsedDate || isNaN(parsedDate.getTime())) {
+        return false; // Skip invalid dates
+      }
+
+      // Convert to YYYY-MM-DD string for comparison
+      const rowDateStr = parsedDate.getFullYear() + '-' + 
+        String(parsedDate.getMonth() + 1).padStart(2, '0') + '-' + 
+        String(parsedDate.getDate()).padStart(2, '0');
+
+      // Apply date range filter
+      if (startDate && rowDateStr < startDate) return false;
+      if (endDate && rowDateStr > endDate) return false;
+      
+      return true;
+    });
+
+    console.log('Date filtering applied:', {
+      originalRows: fileData.rows.length,
+      filteredRows: filteredRows.length,
+      startDate,
+      endDate,
+      dateColumn,
+      dateFormat
+    });
+
+    return {
+      ...fileData,
+      rows: filteredRows,
+      totalRows: filteredRows.length
+    };
   };
 
   // Close dropdown on outside click
   useEffect(() => {
     const handler = (e) => {
-      if (!pillContainerRef.current) return;
-      if (!pillContainerRef.current.contains(e.target)) {
-        setRemoveDropdownOpen(false);
+      if (addLocationContainerRef.current && !addLocationContainerRef.current.contains(e.target)) {
+        setAddLocationDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Handle chart legend clicks
+  useEffect(() => {
+    const handleLegendClick = (e) => {
+      const { locationName } = e.detail;
+      setEnabledLocations(prev => {
+        if (prev.includes(locationName)) {
+          return prev.filter(loc => loc !== locationName);
+        } else {
+          return [...prev, locationName];
+        }
+      });
+    };
+
+    window.addEventListener('chartLegendClick', handleLegendClick);
+    return () => window.removeEventListener('chartLegendClick', handleLegendClick);
   }, []);
 
   // Highcharts loader
@@ -478,11 +588,32 @@ const IngestDataStep = ({
       }
       
       if (!fileData || !highchartsContainerRef.current) return;
+      
+      // Don't render chart if we don't have any enabled locations yet
+      if (enabledLocations.length === 0) {
+        console.log('No enabled locations yet, skipping chart render');
+        return;
+      }
+      
       const Highcharts = await loadHighcharts();
+
+      // Get filtered data based on date range
+      const filteredData = getFilteredFileData();
+      if (!filteredData || filteredData.rows.length === 0) {
+        console.log('No data after date filtering - chart will be empty');
+        // Clear the chart if no data
+        if (chartInstanceRef.current) {
+          chartInstanceRef.current.destroy();
+          chartInstanceRef.current = null;
+        }
+        return;
+      }
 
       // Build series by location using mapped column names
       const locationToPoints = {};
-      const headers = (fileData.headers || []).map(h => String(h).trim().toLowerCase());
+      const headers = (filteredData.headers || []).map(h => String(h).trim().toLowerCase());
+      
+
       
       // Use mapped column names instead of hardcoded ones
       const idxLocation = headers.indexOf(locationColumn.trim().toLowerCase());
@@ -497,15 +628,15 @@ const IngestDataStep = ({
       const dates = [];
       const dateToStandardized = new Map();
       
-      fileData.rows.forEach(row => {
-        const location = (row[idxLocation] || '').trim();
+      filteredData.rows.forEach(row => {
+        const location = (row[idxLocation] || '').trim().toLowerCase(); // Convert to lowercase to match ingestion
         const outcome = Number(row[idxOutcome]) || 0;
         const dateStr = (row[idxDate] || '').trim();
         
         if (!location || !dateStr) return;
         
-        // Filter out ZIP codes if option is enabled
-        if (containsZipCodes && isZipCode(location)) return;
+        // Filter out ZIP codes if option is enabled (check original location before conversion)
+        if (containsZipCodes && isZipCode((row[idxLocation] || '').trim())) return;
         
         // Parse and standardize the date
         const standardizedDate = standardizeDate(dateStr, dateFormat);
@@ -530,14 +661,22 @@ const IngestDataStep = ({
         return dateA - dateB;
       });
 
+
       const series = Object.keys(locationToPoints).map(location => {
         const map = new Map(locationToPoints[location].map(p => [p.d, p.y]));
+        const isEnabled = enabledLocations.includes(location);
+        const seriesData = dates.map(d => map.has(d) ? map.get(d) : null);
+        
         return {
           name: location,
-          data: dates.map(d => map.has(d) ? map.get(d) : null),
-          connectNulls: true
+          data: seriesData,
+          connectNulls: true,
+          visible: isEnabled,
+          showInLegend: true
         };
       });
+      
+
 
       if (chartInstanceRef.current) {
         chartInstanceRef.current.destroy();
@@ -548,8 +687,33 @@ const IngestDataStep = ({
         title: { text: `${outcomeColumn} by ${locationColumn} (Combined)` },
         xAxis: { categories: dates, title: { text: dateColumn } },
         yAxis: { title: { text: outcomeColumn } },
-        legend: { enabled: true },
+        legend: { 
+          enabled: true,
+          itemStyle: {
+            cursor: 'pointer'
+          }
+        },
         credits: { enabled: false },
+        plotOptions: {
+          series: {
+            events: {
+              legendItemClick: function(e) {
+                // Prevent default toggle behavior
+                e.preventDefault();
+                
+                const locationName = this.name;
+                
+                // Use a custom event to communicate with React
+                const event = new CustomEvent('chartLegendClick', {
+                  detail: { locationName }
+                });
+                window.dispatchEvent(event);
+                
+                return false; // Prevent default Highcharts behavior
+              }
+            }
+          }
+        },
         series
       });
     };
@@ -558,7 +722,7 @@ const IngestDataStep = ({
 
     // Preserve chart instance when switching tabs; clean up only on unmount
     return () => {};
-  }, [combinedLinePlot, fileData, activeTab, isDataIngested, locationColumn, outcomeColumn, dateColumn]);
+  }, [combinedLinePlot, fileData, activeTab, isDataIngested, locationColumn, outcomeColumn, dateColumn, enabledLocations, dateFormat, containsZipCodes, startDate, endDate]);
 
   useEffect(() => {
     return () => {
@@ -827,10 +991,7 @@ const IngestDataStep = ({
                 isDataIngested ? (
                   <div className="plot-container">
                     <div className="chart-container">
-                      <div className="chart-header">
-                        <h3>{outcomeColumn} by {locationColumn}</h3>
-                        <p className="chart-subtitle">{outcomeColumn} trends by {locationColumn}</p>
-                      </div>
+                      
                     <div className="plot-controls" style={{ justifyContent: 'flex-end', marginBottom: 8 }}>
                       <label className="checkbox-label" style={{ gap: 6 }}>
                         <input type="checkbox" checked={combinedLinePlot} onChange={(e) => setCombinedLinePlot(e.target.checked)} />
@@ -1009,77 +1170,79 @@ const IngestDataStep = ({
 
           {fileData && (
             <div className="post-upload-options">
-              <div className="toggle-grid">
-                <label className="switch-label">
-                  <input type="checkbox" checked={trimMostlyZero} onChange={(e) => setTrimMostlyZero(e.target.checked)} />
-                  <span className="switch"></span>
-                  <span className="switch-text">Trim Mostly Zero Locations <Info size={14} className="info-icon" /></span>
-                </label>
-
-                <label className="switch-label">
-                  <input type="checkbox" checked={clipOutliers} onChange={(e) => setClipOutliers(e.target.checked)} />
-                  <span className="switch"></span>
-                  <span className="switch-text">Clip Outliers <Info size={14} className="info-icon" /></span>
-                </label>
-
-                <label className="switch-label">
-                  <input type="checkbox" checked={trimToLastEnabled} onChange={(e) => setTrimToLastEnabled(e.target.checked)} />
-                  <span className="switch"></span>
-                  <span className="switch-text">Trim to Last
+              <div className="date-range-filter">
+                <div className="date-range-title">Date Range Filter</div>
+                <div className="date-range-inputs">
+                  <div className="date-input-group">
+                    <label className="date-label">Start Date</label>
                     <input
-                      type="number"
-                      min="1"
-                      className="inline-number"
-                      value={trimToLastDays}
-                      onChange={(e) => setTrimToLastDays(e.target.value)}
-                      disabled={!trimToLastEnabled}
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="date-input"
                     />
-                    days
-                    <Info size={14} className="info-icon" />
-                  </span>
-                </label>
-
-                <label className="switch-label">
-                  <input type="checkbox" checked={checkProblems} onChange={(e) => setCheckProblems(e.target.checked)} />
-                  <span className="switch"></span>
-                  <span className="switch-text">Seasonality<Info size={14} className="info-icon" /></span>
-                </label>
+                  </div>
+                  <div className="date-input-group">
+                    <label className="date-label">End Date</label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="date-input"
+                    />
+                  </div>
+                </div>
+                {(startDate || endDate) && (
+                  <button
+                    type="button"
+                    className="clear-dates-btn"
+                    onClick={() => {
+                      setStartDate('');
+                      setEndDate('');
+                    }}
+                  >
+                    Clear Date Filter
+                  </button>
+                )}
               </div>
 
-              <div className="remove-locations">
-                <div className="remove-title">Remove Locations</div>
-                <div className="remove-subtitle">Remove specific locations before designing the experiment.</div>
-                <div className="pill-input pill-select" ref={pillContainerRef} onClick={() => setRemoveDropdownOpen(!removeDropdownOpen)}>
-                  {removedLocations.length === 0 && (
-                    <span className="pill-placeholder">Select locations to remove...</span>
-                  )}
-                  {removedLocations.map((loc) => (
-                    <span key={loc} className="pill">
-                      {loc}
-                      <button
-                        type="button"
-                        className="pill-remove"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setRemovedLocations(removedLocations.filter(l => l !== loc));
-                        }}
-                        aria-label={`Remove ${loc}`}
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                  {removeDropdownOpen && (
-                    <div className="pill-dropdown">
-                      {availableLocations.map((loc) => (
+              <div className="add-locations">
+                <div className="add-title">Add Location to Chart</div>
+                <div className="location-input-container" ref={addLocationContainerRef}>
+                  <div className="location-input-wrapper">
+                    {enabledLocations.length > 0 && (
+                      <div className="enabled-locations-legend">
+                        {enabledLocations.map((location) => (
+                          <span key={location} className="location-pill">
+                            {location}
+                            <button
+                              type="button"
+                              className="pill-remove"
+                              onClick={() => setEnabledLocations(prev => prev.filter(loc => loc !== location))}
+                              aria-label={`Remove ${location}`}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <input
+                      type="text"
+                      value={addLocationInput}
+                      onChange={handleAddLocationInputChange}
+                      placeholder={enabledLocations.length > 0 ? "Add more locations..." : "Type location name to add..."}
+                      className="location-input"
+                    />
+                  </div>
+                  {addLocationDropdownOpen && getFilteredAvailableLocations().length > 0 && (
+                    <div className="location-dropdown">
+                      {getFilteredAvailableLocations().map((loc) => (
                         <button
                           type="button"
                           key={loc}
-                          className={`pill-option ${removedLocations.includes(loc) ? 'selected' : ''}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleLocationRemoval(loc);
-                          }}
+                          className="location-option"
+                          onClick={() => addLocationToChart(loc)}
                         >
                           {loc}
                         </button>
@@ -1087,7 +1250,6 @@ const IngestDataStep = ({
                     </div>
                   )}
                 </div>
-                <small className="input-help">Choices come from your uploaded file's locations.</small>
               </div>
             </div>
           )}
