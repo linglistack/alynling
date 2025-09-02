@@ -725,7 +725,7 @@ const ConfigureExperiment = ({
       <div className="configure-right">
         <div className="results-card">
           <div className="results-title">Market Selection Results</div>
-          <div className="tab-content" style={{ overflow: 'auto', flex: 1, padding: '16px 0', display: 'flex', flexDirection: 'column' }}>
+          <div className="tab-content" style={{ flex: 1, padding: '16px 0', display: 'flex', flexDirection: 'column' }}>
             {msLoading ? (
               <div className="results-loading">
                 <div className="loading-text">
@@ -1025,18 +1025,15 @@ const ConfigureExperiment = ({
                         dataSource={dataSource}
                         pagination={false}
                         rowSelection={rowSelection}
-                        scroll={{ 
-                          y: tableHeight, // Dynamic height that matches left panel
-                          x: 'max-content' // Auto width based on content
-                        }}
+                        scroll={false}
                         size="small"
                         bordered
                         showSorterTooltip={false}
                         tableLayout="auto" // Auto-size columns based on content
                         components={{
-                          header: {
-                            cell: ResizableTitle,
-                          },
+                          // header: {
+                          //   cell: ResizableTitle,
+                          // },
                         }}
                         expandable={{
                           expandedRowRender,
@@ -1061,20 +1058,7 @@ const ConfigureExperiment = ({
                       />
                     </div>
                     
-                    {/* Next Button for Step 3 */}
-                    {marketCombos && marketCombos.length > 0 && (
-                      <div className="table-actions">
-                        <button
-                          type="button"
-                          className={`primary-btn ${selectedRows.length === 0 ? 'secondary' : ''}`}
-                          disabled={selectedRows.length === 0}
-                          onClick={navigateToStep3}
-                          title={selectedRows.length === 0 ? 'Select a market combination from the table to proceed' : `Proceed to step 3 for ${selectedRows.length > 0 ? selectedRows[0].locations || selectedRows[0].test_markets || selectedRows[0].markets || 'selected combination' : ''}`}
-                        >
-                          {selectedRows.length > 0 ? `Next: Analysis` : 'Next (Select a Market)'}
-                        </button>
-                      </div>
-                    )}
+            
                   </>
                 );
               })()
@@ -1085,6 +1069,21 @@ const ConfigureExperiment = ({
             )}
           </div>
         </div>
+        
+        {/* Next Button for Step 3 - positioned below the table */}
+        {marketCombos && marketCombos.length > 0 && (
+          <div className="table-actions">
+            <button
+              type="button"
+              className={`primary-btn ${selectedRows.length === 0 ? 'secondary' : ''}`}
+              disabled={selectedRows.length === 0}
+              onClick={navigateToStep3}
+              title={selectedRows.length === 0 ? 'Select a market combination from the table to proceed' : `Proceed to step 3 for ${selectedRows.length > 0 ? selectedRows[0].locations || selectedRows[0].test_markets || selectedRows[0].markets || 'selected combination' : ''}`}
+            >
+              {selectedRows.length > 0 ? `Next: Analysis` : 'Next (Select a Market)'}
+            </button>
+          </div>
+        )}
       </div>
       </div>
       
@@ -1099,6 +1098,7 @@ const ConfigureExperiment = ({
         initialExcluded={editingCellIndex !== null ? cells[editingCellIndex]?.locations?.excludedStates || cells[editingCellIndex]?.locations?.excluded || [] : []}
         availableLocations={availableLocations}
       />
+       
     </div>
   );
 };

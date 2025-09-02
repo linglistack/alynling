@@ -46,7 +46,10 @@
     gap: 16px;
 }
 
-.config-field {}
+.config-field {
+    display: flex;
+    flex-direction: column;
+}
 
 .config-label {
     display: block;
@@ -174,7 +177,11 @@
 .config-actions {
     display: flex;
     justify-content: flex-end;
+    gap: 12px;
+    align-items: center;
 }
+
+
 
 .primary-btn {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -361,7 +368,7 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    min-height: 0;
+    min-height: auto;
 }
 
 .results-title {
@@ -544,8 +551,6 @@
 
 .combo-table-wrapper {
     width: 100%;
-    max-height: 650px;
-    overflow: auto;
     border: 1px solid #e5e7eb;
     border-radius: 8px;
 }
@@ -651,9 +656,9 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    min-height: 0;
+    min-height: auto;
     /* Dynamic height that adjusts with left panel content */
-    overflow: hidden;
+    overflow: visible;
     position: relative;
 }
 
@@ -662,7 +667,7 @@
 }
 
 .antd-table-wrapper .ant-table-container {
-    height: 100%;
+    height: auto;
 }
 
 .antd-table-wrapper .ant-table-thead>tr>th {
@@ -671,6 +676,9 @@
     font-weight: 600;
     color: #374151;
     padding: 12px 8px;
+    position: sticky;
+    top: -16px;
+    z-index: 10;
 }
 
 .antd-table-wrapper .ant-table-tbody>tr>td {
@@ -747,15 +755,11 @@
 .antd-table-wrapper .ant-table-thead>tr>th {
     padding: 12px 16px;
     white-space: nowrap;
-    text-overflow: ellipsis;
-    overflow: hidden;
 }
 
 .antd-table-wrapper .ant-table-tbody>tr>td {
     padding: 10px 16px;
     white-space: nowrap;
-    text-overflow: ellipsis;
-    overflow: hidden;
 }
 
 /* Ensure table takes full width and columns are properly sized */
