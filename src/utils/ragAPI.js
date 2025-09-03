@@ -3,7 +3,7 @@
  * Provides methods to communicate with the RAG Q&A backend
  */
 
-const RAG_API_BASE_URL = process.env.REACT_APP_RAG_API_URL || 'http://localhost:5000';
+const RAG_API_BASE_URL = process.env.REACT_APP_RAG_API_URL || 'https://142.93.8.101.sslip.io:5000';
 
 class RAGAPIError extends Error {
   constructor(message, status, data) {
