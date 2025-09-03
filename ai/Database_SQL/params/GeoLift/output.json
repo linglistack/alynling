@@ -1,81 +1,82 @@
-{"Shared": {
-  "ID": {
-    "explanation": "Numeric ID that identifies a combination of test markets for a given duration. Useful for tracking and plotting results.",
-    "example": null,
-    "importance": "Helps distinguish between different market-test combinations for analysis.",
-    "omit": false
-  },
-  "location": {
-    "explanation": "Identifies the test locations included in the simulation.",
-    "example": null,
-    "importance": "Needed to know which regions are being tested, but does not explain performance directly.",
-    "omit": false
-  },
-  "duration": {
-    "explanation": "This is the amount of time that the test will last.",
-    "example": null,
-    "importance": "Directly affects statistical power and the reliability of test outcomes.",
-    "omit": false
-  },
-  "EffectSize": {
-    "explanation": "Minimum lift required for the test to be well-powered. Values depend on the effect_size parameter of the function.",
-    "example": "EffectSize of 0.10 means a 10% lift is required for reliable detection.",
-    "importance": "Guides how sensitive the test is to changes in performance. Smaller EffectSize = harder to detect.",
-    "omit": false
-  },
-  "Power": {
-    "explanation": "Average statistical power across simulations at the specified Effect Size.",
-    "example": "Power of 0.8 indicates an 80% chance of detecting the effect size if it is real.",
-    "importance": "Ensures the test is adequately powered to detect meaningful effects and avoid false negatives.",
-    "omit": false
-  },
-  "AvgScaledL2Imbalance": {
-    "explanation": "A goodness-of-fit metric (0–1) showing how well the model predicts pre-treatment values with Synthetic Control.",
-    "example": "0.05 indicates a near-perfect fit; 0.80 indicates poor fit, similar to naive averaging.",
-    "importance": "Key measure of model quality: low imbalance = strong counterfactual validity.",
-    "omit": false
-  },
-  "Investment": {
-    "explanation": "Average investment required to run a well-powered test given CPIC assumptions.",
-    "example": "An average spend of $500k across test markets.",
-    "importance": "Links cost to test validity, ensuring budget is aligned with test power.",
-    "omit": false
-  },
-  "AvgATT": {
-    "explanation": "Average treatment effect on the treated (ATT) across test markets and time-stamps.",
-    "example": "An AvgATT of +200 units per day across test stores.",
-    "importance": "Captures incremental impact of the intervention, core measure of test success.",
-    "omit": false
-  },
-  "Average_MDE": {
-    "explanation": "Average Minimum Detectable Effect (MDE) across all simulations.",
-    "example": "MDE of 5% means the test can reliably detect effects larger than a 5% lift.",
-    "importance": "Indicates test sensitivity; lower MDE = more precise test design.",
-    "omit": false
-  },
-  "ProportionTotal_Y": {
-    "explanation": "Proportion of all conversions that occur in test regions relative to the total market.",
-    "example": "0.10 means test markets account for 10% of all conversions.",
-    "importance": "Ensures test markets are large enough to reflect meaningful portions of traffic/conversions.",
-    "omit": false
-  },
-  "abs_lift_in_zero": {
-    "explanation": "Average estimated lift when simulating a true 0% lift. Ideally close to zero.",
-    "example": "A value of 0.01 means almost no artificial lift is introduced.",
-    "importance": "Diagnostic for test quality: if large, the test is biased and unreliable.",
-    "omit": false
-  },
-  "Holdout": {
-    "explanation": "Percent of conversions occurring in control markets, complement to ProportionTotal_Y.",
-    "example": "0.85 means control markets represent 85% of total conversions.",
-    "importance": "Helps balance test and control allocation for valid comparisons.",
-    "omit": false
-  },
-  "rank": {
-    "explanation": "Composite ranking variable summarizing EffectSize, Power, AvgScaledL2Imbalance, Average_MDE, and abs_lift_in_zero.",
-    "example": "Rank of 1 indicates the top-performing market selection.",
-    "importance": "Simplifies decision-making by summarizing multiple quality metrics into one score.",
-    "omit": false
+{
+  "Shared": {
+    "ID": {
+      "explanation": "Numeric ID that identifies a combination of test markets for a given duration. Useful for tracking and plotting results.",
+      "example": null,
+      "importance": "Helps distinguish between different market-test combinations for analysis.",
+      "omit": false
+    },
+    "location": {
+      "explanation": "Identifies the test locations included in the simulation.",
+      "example": null,
+      "importance": "Needed to know which regions are being tested, but does not explain performance directly.",
+      "omit": false
+    },
+    "duration": {
+      "explanation": "This is the amount of time that the test will last.",
+      "example": null,
+      "importance": "Directly affects statistical power and the reliability of test outcomes.",
+      "omit": false
+    },
+    "EffectSize": {
+      "explanation": "Minimum lift required for the test to be well-powered. Values depend on the effect_size parameter of the function.",
+      "example": "EffectSize of 0.10 means a 10% lift is required for reliable detection.",
+      "importance": "Guides how sensitive the test is to changes in performance. Smaller EffectSize = harder to detect.",
+      "omit": false
+    },
+    "Power": {
+      "explanation": "Average statistical power across simulations at the specified Effect Size.",
+      "example": "Power of 0.8 indicates an 80% chance of detecting the effect size if it is real.",
+      "importance": "Ensures the test is adequately powered to detect meaningful effects and avoid false negatives.",
+      "omit": false
+    },
+    "AvgScaledL2Imbalance": {
+      "explanation": "A goodness-of-fit metric (0–1) showing how well the model predicts pre-treatment values with Synthetic Control.",
+      "example": "0.05 indicates a near-perfect fit; 0.80 indicates poor fit, similar to naive averaging.",
+      "importance": "Key measure of model quality: low imbalance = strong counterfactual validity.",
+      "omit": false
+    },
+    "Investment": {
+      "explanation": "Average investment required to run a well-powered test given CPIC assumptions.",
+      "example": "An average spend of $500k across test markets.",
+      "importance": "Links cost to test validity, ensuring budget is aligned with test power.",
+      "omit": false
+    },
+    "AvgATT": {
+      "explanation": "Average treatment effect on the treated (ATT) across test markets and time-stamps.",
+      "example": "An AvgATT of +200 units per day across test stores.",
+      "importance": "Captures incremental impact of the intervention, core measure of test success.",
+      "omit": false
+    },
+    "Average_MDE": {
+      "explanation": "Average Minimum Detectable Effect (MDE) across all simulations.",
+      "example": "MDE of 5% means the test can reliably detect effects larger than a 5% lift.",
+      "importance": "Indicates test sensitivity; lower MDE = more precise test design.",
+      "omit": false
+    },
+    "ProportionTotal_Y": {
+      "explanation": "Proportion of all conversions that occur in test regions relative to the total market.",
+      "example": "0.10 means test markets account for 10% of all conversions.",
+      "importance": "Ensures test markets are large enough to reflect meaningful portions of traffic/conversions.",
+      "omit": false
+    },
+    "abs_lift_in_zero": {
+      "explanation": "Average estimated lift when simulating a true 0% lift. Ideally close to zero.",
+      "example": "A value of 0.01 means almost no artificial lift is introduced.",
+      "importance": "Diagnostic for test quality: if large, the test is biased and unreliable.",
+      "omit": false
+    },
+    "Holdout": {
+      "explanation": "Percent of conversions occurring in control markets, complement to ProportionTotal_Y.",
+      "example": "0.85 means control markets represent 85% of total conversions.",
+      "importance": "Helps balance test and control allocation for valid comparisons.",
+      "omit": false
+    },
+    "rank": {
+      "explanation": "Composite ranking variable summarizing EffectSize, Power, AvgScaledL2Imbalance, Average_MDE, and abs_lift_in_zero.",
+      "example": "Rank of 1 indicates the top-performing market selection.",
+      "importance": "Simplifies decision-making by summarizing multiple quality metrics into one score.",
+      "omit": false
+    }
   }
-}
 }

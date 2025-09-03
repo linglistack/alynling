@@ -34,10 +34,15 @@
 }
 
 @media (max-width: 1024px) {
-  .chat-toggle-btn.open { right: calc(40vw - 24px); }
+  .chat-toggle-btn.open {
+    right: calc(40vw - 24px);
+  }
 }
+
 @media (max-width: 768px) {
-  .chat-toggle-btn.open { right: calc(50vw - 24px); }
+  .chat-toggle-btn.open {
+    right: calc(50vw - 24px);
+  }
 }
 
 .chat-badge {
@@ -95,6 +100,7 @@
   from {
     transform: translateX(100%);
   }
+
   to {
     transform: translateX(0);
   }
@@ -135,19 +141,42 @@
 
 .chat-status {
   font-size: 12px;
-  opacity: 0.8;
+  opacity: 0.9;
   display: flex;
   align-items: center;
   gap: 4px;
+  font-weight: 500;
+}
+
+.chat-status.rag-enabled {
+  color: #059669;
+}
+
+.chat-status.rag-disabled {
+  color: #6b7280;
+}
+
+.rag-error {
+  color: #dc2626;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
 }
 
 .chat-status::before {
   content: '';
   width: 6px;
   height: 6px;
-  background: #10b981;
   border-radius: 50%;
   display: inline-block;
+}
+
+.chat-status.rag-enabled::before {
+  background: #10b981;
+}
+
+.chat-status.rag-disabled::before {
+  background: #9ca3af;
 }
 
 .chat-controls {
@@ -208,6 +237,7 @@
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -277,11 +307,44 @@
   margin-bottom: 0;
 }
 
+.message-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+
 .message-time {
   font-size: 11px;
   color: #9ca3af;
-  margin-top: 4px;
-  text-align: right;
+}
+
+.message-source {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.message-source.rag {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #92400e;
+  border: 1px solid #f59e0b;
+}
+
+.message-source.mock {
+  background: #f3f4f6;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+}
+
+.message-source.fallback {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
 }
 
 .message.bot .message-time {
@@ -312,9 +375,13 @@
 }
 
 @keyframes typing {
-  0%, 60%, 100% {
+
+  0%,
+  60%,
+  100% {
     transform: translateY(0);
   }
+
   30% {
     transform: translateY(-10px);
   }
@@ -324,9 +391,24 @@
 .quick-actions {
   padding: 0 32px 24px 32px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+  flex-direction: column;
+  gap: 16px;
   background: transparent;
+}
+
+.quick-actions-section h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.quick-actions-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .quick-action-btn {
@@ -341,10 +423,22 @@
   white-space: nowrap;
 }
 
-.quick-action-btn:hover {
+.quick-action-btn.general:hover {
   background: #f0f4ff;
   border-color: #4f46e5;
   color: #4f46e5;
+}
+
+.quick-action-btn.rag {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid #f59e0b;
+  color: #92400e;
+}
+
+.quick-action-btn.rag:hover {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: #78350f;
+  transform: translateY(-1px);
 }
 
 /* 输入区域 */
@@ -490,15 +584,15 @@
   .chat-container {
     width: 50vw;
   }
-  
+
   .chat-messages {
     padding: 24px;
   }
-  
+
   .chat-input-container {
     padding: 24px;
   }
-  
+
   .quick-actions {
     padding: 0 24px 16px 24px;
   }
@@ -509,7 +603,7 @@
     width: 100vw;
     border-left: none;
   }
-  
+
   .chat-toggle-btn {
     top: auto;
     bottom: 24px;
@@ -521,11 +615,11 @@
     writing-mode: initial;
     text-orientation: initial;
   }
-  
+
   .chat-toggle-btn:hover {
     transform: translateY(-2px);
   }
-  
+
   .chat-badge {
     writing-mode: initial;
     text-orientation: initial;
@@ -537,24 +631,24 @@
     border-radius: 10px;
     font-size: 10px;
   }
-  
+
   .quick-actions {
     flex-direction: column;
   }
-  
+
   .quick-action-btn {
     width: 100%;
     text-align: center;
   }
-  
+
   .chat-messages {
     padding: 20px;
   }
-  
+
   .chat-input-container {
     padding: 20px;
   }
-  
+
   .quick-actions {
     padding: 0 20px 16px 20px;
   }
