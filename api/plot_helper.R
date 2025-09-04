@@ -1,17 +1,18 @@
 library(GeoLift)
 
 
-create_artificial_lift_for_given_market <- function(x, market_ID){
+GeoLift_lift_injection <- function(market_selection, market_ID){
   # Taken from plot.GeoLiftPower
-  # takes a market selection object, returns 
-  # 1. a GeoLift object for market selection treatment vs. control
+  
+  # Takes a GeoLiftMarketSelection object, and a market_ID, returns:
+  # 1. a GeoLift output object for market selection treatment vs. control
   # 2. a data frame containing effect size, power, and Investment needed. 
   
-  Market <- x$BestMarkets %>% dplyr::filter(ID == market_ID)
+  Market <- market_selection$BestMarkets %>% dplyr::filter(ID == market_ID)
   locs_aux <- unlist(strsplit(stringr::str_replace_all(Market$location, ", ", ","), split = ","))
-  max_time <- max(x$parameters$data$time)
+  max_time <- max(market_selection$parameters$data$time)
   
-  data_lifted <- x$parameters$data
+  data_lifted <- market_selection$parameters$data
   
   data_lifted$Y[data_lifted$location %in% locs_aux &
                   data_lifted$time >= max_time - Market$duration + 1] <-
@@ -19,7 +20,7 @@ create_artificial_lift_for_given_market <- function(x, market_ID){
                     data_lifted$time >= max_time - Market$duration + 1] * (1 + Market$EffectSize)
   
   
-  if (tolower(x$parameters$side_of_test) == "two_sided") {
+  if (tolower(market_selection$parameters$side_of_test) == "two_sided") {
     stat_test <- "Total"
   } else {
     if (Market$EffectSize < 0) {
@@ -36,16 +37,16 @@ create_artificial_lift_for_given_market <- function(x, market_ID){
     locations = locs_aux,
     treatment_start_time = max_time - Market$duration + 1,
     treatment_end_time = max_time,
-    model = x$parameters$model,
-    fixed_effects = x$parameters$fixed_effects,
+    model = market_selection$parameters$model,
+    fixed_effects = market_selection$parameters$fixed_effects,
     stat_test = stat_test
   )
   
   
-  treatment_periods <- unique(x$duration)
-  EffectSize <- unique(x$EffectSize)
+  treatment_periods <- unique(market_selection$duration)
+  EffectSize <- unique(market_selection$EffectSize)
   
-  PowerPlot_data <- as.data.frame(x$PowerCurves %>% dplyr::filter(
+  PowerPlot_data <- as.data.frame(market_selection$PowerCurves %>% dplyr::filter(
     duration == Market$duration,
     location == Market$location
   ))%>%
@@ -60,12 +61,11 @@ create_artificial_lift_for_given_market <- function(x, market_ID){
 
 
 
-df_GeoLift_Lift <- function(GeoLift,
-                      treatment_end_date = NULL,
-                      frequency = "daily",
-                      post_treatment_periods = 0) {
+GeoLift_lift_data <- function(GeoLift) {
   # Taken from Lift.plot
-  # Take output from GeoLift, return treatment + observation + confidence band for treatment period
+  
+  # Takes a GeoLift object, returns:
+  # treatment + observation + confidence band for treatment period
   
   treatment_obs <- as.data.frame(
     colMeans(
@@ -87,87 +87,18 @@ df_GeoLift_Lift <- function(GeoLift,
     Time = 1:length(treatment_obs$t_obs)
   )
   
-  if (!is.null(treatment_end_date)) {
-    plot_dates <- get_date_from_test_periods(GeoLift,
-                                             treatment_end_date,
-                                             post_treatment_periods = post_treatment_periods,
-                                             frequency = frequency
-    )
-    df$Time <- plot_dates$date_vector
-  } else {
-    message(
-      "You can include dates in your chart if you supply the end date of the treatment. Just specify the treatment_end_date parameter."
-    )
-    plot_dates <- list(
-      treatment_start = GeoLift$TreatmentStart,
-      treatment_end = GeoLift$TreatmentEnd
-    )
-  }
-  
-  if (post_treatment_periods < 0) {
-    post_treatment_periods <- abs(post_treatment_periods)
-  }
-  
-  # Post Treatment Periods
-  df$post_treatment <- "Treatment Period"
-  if (post_treatment_periods > 0) {
-    post_treatment_linetype <- "dashed"
-    df$post_treatment[(nrow(df) - post_treatment_periods + 1):nrow(df)] <- "Post-treatment Period"
-    df <- rbind(df, df[(nrow(df) - post_treatment_periods + 1), ])
-    df$post_treatment[nrow(df)] <- "Treatment Period"
-  } else {
-    post_treatment_linetype <- "blank"
-  }
-  
-  if (!is.null(treatment_end_date)) {
-    plot_dates$treatment_end <- plot_dates$treatment_end + post_treatment_periods
-  }
-  
   return(df)
 }
 
 
 
-prep_att_data <- function(GeoLift,
-                          treatment_end_date = NULL,
-                          frequency = "daily",
-                          post_treatment_periods = 0) {
+GeoLift_att_data <- function(GeoLift) {
   # Taken from absolute_value.plot
-  # Take output from GeoLift, return treatment + observation + confidence band for treatment period
   
+  # Takes a GeoLift object, returns: 
+  # time + ATT estimate and confidence band for the treatment period
   
-  # Keep only needed columns from ATT summary
   df <- GeoLift$summary$att[, c("Time", "Estimate", "lower_bound", "upper_bound")]
-  
-  # Handle post-treatment periods if user specified a number
-  if (post_treatment_periods < 0) {
-    post_treatment_periods <- abs(post_treatment_periods)
-  }
-  
-  # Convert period indices to actual dates if an end date is given
-  if (!is.null(treatment_end_date)) {
-    plot_dates <- get_date_from_test_periods(
-      GeoLift,
-      treatment_end_date,
-      post_treatment_periods = post_treatment_periods,
-      frequency = frequency
-    )
-    df$Time <- plot_dates$date_vector
-  } else {
-    plot_dates <- list(
-      treatment_start = GeoLift$TreatmentStart,
-      treatment_end   = GeoLift$TreatmentEnd
-    )
-  }
-  
-  
-  # Mark treatment vs post-treatment rows
-  df$post_treatment <- "Treatment Period"
-  if (post_treatment_periods > 0) {
-    df$post_treatment[(nrow(df) - post_treatment_periods + 1):nrow(df)] <- "Post-treatment Period"
-    df <- rbind(df, df[(nrow(df) - post_treatment_periods + 1), ])
-    df$post_treatment[nrow(df)] <- "Treatment Period" # R plotting hack, not sure if it's good elsewhere
-  }
   
   return(df)
 }
