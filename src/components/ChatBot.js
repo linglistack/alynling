@@ -60,10 +60,10 @@ const ChatBot = ({ onChatToggle }) => {
   ];
 
   const quickActions = [
-    { text: "Create Experiment", action: "create_experiment" },
-    { text: "Analyze Data", action: "analyze_data" },
-    { text: "View MMM", action: "view_mmm" },
-    { text: "Help Docs", action: "help_docs" }
+    // { text: "Create Experiment", action: "create_experiment" },
+    // { text: "Analyze Data", action: "analyze_data" },
+    // { text: "View MMM", action: "view_mmm" },
+    // { text: "Help Docs", action: "help_docs" }
   ];
 
   const ragQuickActions = [
@@ -294,23 +294,23 @@ const ChatBot = ({ onChatToggle }) => {
   };
 
   const handleHypothesisClick = (hypothesis) => {
-    // 用户选择了一个假设，添加为用户消息
+    // User selected a hypothesis, add as user message
     const userMessage = {
       id: Date.now(),
       type: 'user',
-      content: `我想测试这个假设: "${hypothesis}"`,
+      content: `I want to test this hypothesis: "${hypothesis}"`,
       timestamp: new Date()
     };
     
     setMessages(prev => [...prev, userMessage]);
     setIsTyping(true);
 
-    // 机器人回应
+    // Bot response
     setTimeout(() => {
       const botResponse = {
         id: Date.now() + 1,
         type: 'bot',
-        content: `很好的选择！基于假设 "${hypothesis}"，我建议您：\n\n1. 确定测试市场和控制市场\n2. 设置最小可检测效应\n3. 确定测试持续时间\n4. 配置实验参数\n\n您想从哪一步开始？我可以帮您创建这个实验。`,
+        content: `Great choice! Based on the hypothesis "${hypothesis}", I suggest you:\n\n1. Determine test market and control market\n2. Set minimum detectable effect\n3. Determine test duration\n4. Configure experiment parameters\n\nWhich step would you like to start with? I can help you create this experiment.`,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, botResponse]);
@@ -327,7 +327,7 @@ const ChatBot = ({ onChatToggle }) => {
 
   return (
     <>
-      {/* 右侧拉手（始终存在，用于打开/关闭） */}
+      {/* Right side handle (always present, for open/close) */}
       <button 
         className={`chat-toggle-btn ${isOpen ? 'open' : ''}`}
         onClick={() => {
@@ -341,10 +341,10 @@ const ChatBot = ({ onChatToggle }) => {
         <span className="chat-badge">COPILOT</span>
       </button>
 
-      {/* 聊天窗口 */}
+      {/* Chat window */}
       {isOpen && (
         <div className={`chat-container ${isMinimized ? 'minimized' : ''}`}>
-          {/* 聊天头部 */}
+          {/* Chat header */}
           <div className="chat-header">
             <div className="chat-header-info">
               <div className="bot-avatar">
@@ -381,7 +381,7 @@ const ChatBot = ({ onChatToggle }) => {
             </div>
           </div>
 
-          {/* 聊天内容 */}
+          {/* Chat content */}
           {!isMinimized && (
             <>
               <div className="chat-messages">
@@ -433,7 +433,7 @@ const ChatBot = ({ onChatToggle }) => {
                   </div>
                 ))}
 
-                {/* 打字指示器 */}
+                {/* Typing indicator */}
                 {isTyping && (
                   <div className="message bot">
                     <div className="message-avatar">
@@ -452,10 +452,9 @@ const ChatBot = ({ onChatToggle }) => {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* 快捷操作 */}
+              {/* Quick actions */}
               <div className="quick-actions">
                 <div className="quick-actions-section">
-                  <h4>General Actions</h4>
                   <div className="quick-actions-grid">
                     {quickActions.map((action, index) => (
                       <button
