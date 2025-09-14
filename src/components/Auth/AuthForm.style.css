@@ -1,0 +1,269 @@
+/* Auth Form Component Styles */
+.auth-form {
+    max-width: 400px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 2rem;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
+}
+
+.auth-form__header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.auth-form__title {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 0.5rem 0;
+}
+
+.auth-form__subtitle {
+    font-size: 1rem;
+    color: #6b7280;
+    margin: 0;
+}
+
+.auth-form__form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.auth-form__fields {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.auth-form__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.auth-form__error {
+    background-color: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #dc2626;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.auth-form__error::before {
+    content: '⚠️';
+    flex-shrink: 0;
+}
+
+.auth-form__footer {
+    margin-top: 1.5rem;
+    text-align: center;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+.auth-form__footer-text {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin: 0;
+}
+
+.auth-form__footer-link {
+    background: none;
+    border: none;
+    color: #3b82f6;
+    text-decoration: none;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 0;
+    font-size: inherit;
+}
+
+.auth-form__footer-link:hover {
+    color: #2563eb;
+    text-decoration: underline;
+}
+
+.auth-form__footer-link:disabled {
+    color: #9ca3af;
+    cursor: not-allowed;
+}
+
+/* OAuth Divider */
+.auth-form__divider {
+    position: relative;
+    text-align: center;
+    margin: 1.5rem 0;
+}
+
+.auth-form__divider::before,
+.auth-form__divider::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 45%;
+    height: 1px;
+    background-color: #e5e7eb;
+}
+
+.auth-form__divider::before {
+    left: 0;
+}
+
+.auth-form__divider::after {
+    right: 0;
+}
+
+.auth-form__divider-text {
+    background-color: #ffffff;
+    padding: 0 1rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+/* Google OAuth Button */
+.auth-form__google-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #374151;
+    background-color: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    font-family: inherit;
+}
+
+.auth-form__google-button:hover:not(:disabled) {
+    background-color: #f9fafb;
+    border-color: #9ca3af;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.auth-form__google-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.auth-form__google-icon {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Loading state */
+.auth-form--loading {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+    .auth-form {
+        margin: 1rem;
+        padding: 1.5rem;
+        max-width: none;
+    }
+
+    .auth-form__title {
+        font-size: 1.5rem;
+    }
+
+    .auth-form__subtitle {
+        font-size: 0.875rem;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .auth-form {
+        background: #1f2937;
+        border-color: #374151;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    }
+
+    .auth-form__title {
+        color: #f9fafb;
+    }
+
+    .auth-form__subtitle {
+        color: #d1d5db;
+    }
+
+    .auth-form__footer {
+        border-top-color: #374151;
+    }
+
+    .auth-form__footer-text {
+        color: #d1d5db;
+    }
+
+    .auth-form__error {
+        background-color: #1f2937;
+        border-color: #f87171;
+        color: #f87171;
+    }
+
+    .auth-form__divider::before,
+    .auth-form__divider::after {
+        background-color: #374151;
+    }
+
+    .auth-form__divider-text {
+        background-color: #1f2937;
+        color: #d1d5db;
+    }
+
+    .auth-form__google-button {
+        background-color: #1f2937;
+        border-color: #374151;
+        color: #f9fafb;
+    }
+
+    .auth-form__google-button:hover:not(:disabled) {
+        background-color: #374151;
+        border-color: #4b5563;
+    }
+}
+
+/* Focus and accessibility improvements */
+.auth-form__footer-link:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* Animation for form appearance */
+.auth-form {
+    animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

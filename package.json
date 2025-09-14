@@ -9,6 +9,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-resizable": "^3.0.5",
+    "react-router-dom": "^6.15.0",
     "react-scripts": "5.0.1",
     "react-simple-maps": "^3.0.0",
     "topojson-client": "^3.1.0",
@@ -22,8 +23,12 @@
     "install-r-packages": "Rscript install_packages.R",
     "start-api": "Rscript api/start_api.R",
     "start-api-production": "Rscript start_render.R",
-    "dev": "concurrently \"npm run start-api\" \"npm start\"",
-    "setup": "npm run install-r-packages && npm install",
+    "start-backend": "cd backend && npm run dev",
+    "start-python-rag": "cd ai && python hybrid_rag_api.py",
+    "dev": "concurrently \"npm run start-api\" \"npm run start-backend\" \"npm run start-python-rag\" \"npm start\"",
+    "dev-with-auth": "concurrently \"npm run start-backend\" \"npm start\"",
+    "dev-full": "concurrently \"npm run start-api\" \"npm run start-backend\" \"npm run start-python-rag\" \"npm start\"",
+    "setup": "npm run install-r-packages && npm install && cd backend && npm install",
     "server": "npm run start-api-production"
   },
   "eslintConfig": {

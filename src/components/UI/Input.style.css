@@ -1,0 +1,130 @@
+/* Input Component Styles */
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+.input-label {
+    font-weight: 500;
+    color: #374151;
+    font-size: 0.875rem;
+}
+
+.input-label--required::after {
+    content: ' *';
+    color: #ef4444;
+}
+
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input {
+    width: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background-color: #ffffff;
+    color: #374151;
+    font-size: 1rem;
+    line-height: 1.5;
+    transition: all 0.2s ease-in-out;
+}
+
+.input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.input:disabled {
+    background-color: #f9fafb;
+    color: #9ca3af;
+    cursor: not-allowed;
+    border-color: #e5e7eb;
+}
+
+/* Error State */
+.input--error {
+    border-color: #ef4444;
+}
+
+.input--error:focus {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+/* Success State */
+.input--success {
+    border-color: #10b981;
+}
+
+.input--success:focus {
+    border-color: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+/* Input Sizes */
+.input--small {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+.input--medium {
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+}
+
+.input--large {
+    padding: 1rem 1.25rem;
+    font-size: 1.125rem;
+}
+
+/* Help Text */
+.input-help {
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.input-help--error {
+    color: #ef4444;
+}
+
+.input-help--success {
+    color: #10b981;
+}
+
+/* Placeholder styling */
+.input::placeholder {
+    color: #9ca3af;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .input-label {
+        color: #e5e7eb;
+    }
+
+    .input {
+        background-color: #1f2937;
+        border-color: #374151;
+        color: #e5e7eb;
+    }
+
+    .input:disabled {
+        background-color: #111827;
+        color: #6b7280;
+        border-color: #374151;
+    }
+
+    .input::placeholder {
+        color: #6b7280;
+    }
+
+    .input-help {
+        color: #9ca3af;
+    }
+}

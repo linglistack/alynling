@@ -1,0 +1,435 @@
+/**
+ * 👑 SIMPLE ADMIN PAGE STYLES
+ * 
+ * Clean, professional styling for the admin dashboard
+ * - Table layout for data display
+ * - Responsive design
+ * - Clean interface elements
+ */
+
+.simple-admin-page {
+    min-height: 100vh;
+    background: #f8fafc;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.simple-admin-page__container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* Header */
+.simple-admin-page__header {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.simple-admin-page__header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #1a202c;
+    margin: 0 0 0.5rem 0;
+}
+
+.simple-admin-page__header p {
+    color: #718096;
+    font-size: 1.125rem;
+    margin: 0;
+}
+
+/* Error Message */
+.simple-admin-page__error {
+    background: #fed7d7;
+    border: 1px solid #feb2b2;
+    color: #c53030;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    position: relative;
+}
+
+.simple-admin-page__error-icon {
+    font-size: 1.25rem;
+}
+
+.simple-admin-page__error-close {
+    position: absolute;
+    right: 1rem;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #c53030;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Stats Cards */
+.simple-admin-page__stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.simple-admin-page__stat-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e2e8f0;
+    text-align: center;
+}
+
+.simple-admin-page__stat-card h3 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #718096;
+    margin: 0 0 0.5rem 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.simple-admin-page__stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+/* Controls */
+.simple-admin-page__controls {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e2e8f0;
+    margin-bottom: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+}
+
+.simple-admin-page__search {
+    flex: 1;
+    min-width: 250px;
+}
+
+.simple-admin-page__search-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.875rem;
+}
+
+.simple-admin-page__search-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.simple-admin-page__sort {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.simple-admin-page__sort-select {
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    background: white;
+}
+
+.simple-admin-page__sort-order {
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    font-size: 1rem;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.simple-admin-page__sort-order:hover {
+    background: #f7fafc;
+}
+
+.simple-admin-page__export-btn,
+.simple-admin-page__refresh-btn {
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.simple-admin-page__export-btn {
+    background: #10b981;
+    color: white;
+}
+
+.simple-admin-page__export-btn:hover {
+    background: #059669;
+}
+
+.simple-admin-page__refresh-btn {
+    background: #3b82f6;
+    color: white;
+}
+
+.simple-admin-page__refresh-btn:hover {
+    background: #2563eb;
+}
+
+/* Table */
+.simple-admin-page__table-container {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+
+.simple-admin-page__loading {
+    padding: 3rem;
+    text-align: center;
+    color: #718096;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.simple-admin-page__spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #e2e8f0;
+    border-top: 3px solid #3b82f6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.simple-admin-page__table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.simple-admin-page__table th {
+    background: #f7fafc;
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: #2d3748;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 0.875rem;
+}
+
+.simple-admin-page__table td {
+    padding: 1rem;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 0.875rem;
+    color: #4a5568;
+}
+
+.simple-admin-page__table tbody tr:hover {
+    background: #f7fafc;
+}
+
+.simple-admin-page__email {
+    font-weight: 500;
+    color: #2d3748;
+}
+
+.simple-admin-page__date {
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 0.75rem;
+    color: #718096;
+}
+
+.simple-admin-page__no-data {
+    text-align: center;
+    color: #a0aec0;
+    font-style: italic;
+    padding: 2rem;
+}
+
+.simple-admin-page__delete-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    font-size: 1rem;
+    transition: background 0.2s ease;
+}
+
+.simple-admin-page__delete-btn:hover {
+    background: #fed7d7;
+}
+
+/* Footer */
+.simple-admin-page__footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e2e8f0;
+    font-size: 0.875rem;
+    color: #718096;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .simple-admin-page__container {
+        padding: 1rem;
+    }
+
+    .simple-admin-page__stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .simple-admin-page__controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .simple-admin-page__search {
+        min-width: auto;
+    }
+
+    .simple-admin-page__sort {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 768px) {
+    .simple-admin-page__header h1 {
+        font-size: 2rem;
+    }
+
+    .simple-admin-page__stats {
+        grid-template-columns: 1fr;
+    }
+
+    .simple-admin-page__table-container {
+        overflow-x: auto;
+    }
+
+    .simple-admin-page__table {
+        min-width: 600px;
+    }
+
+    .simple-admin-page__footer {
+        flex-direction: column;
+        gap: 0.5rem;
+        text-align: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .simple-admin-page__container {
+        padding: 0.5rem;
+    }
+
+    .simple-admin-page__header h1 {
+        font-size: 1.5rem;
+    }
+
+    .simple-admin-page__controls {
+        padding: 1rem;
+    }
+
+    .simple-admin-page__stat-card {
+        padding: 1rem;
+    }
+
+    .simple-admin-page__stat-number {
+        font-size: 1.5rem;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .simple-admin-page {
+        background: #1a202c;
+    }
+
+    .simple-admin-page__header h1 {
+        color: #f7fafc;
+    }
+
+    .simple-admin-page__header p {
+        color: #a0aec0;
+    }
+
+    .simple-admin-page__stat-card,
+    .simple-admin-page__controls,
+    .simple-admin-page__table-container,
+    .simple-admin-page__footer {
+        background: #2d3748;
+        border-color: #4a5568;
+    }
+
+    .simple-admin-page__stat-number {
+        color: #f7fafc;
+    }
+
+    .simple-admin-page__table th {
+        background: #4a5568;
+        color: #f7fafc;
+    }
+
+    .simple-admin-page__table td {
+        color: #e2e8f0;
+    }
+
+    .simple-admin-page__table tbody tr:hover {
+        background: #4a5568;
+    }
+
+    .simple-admin-page__search-input,
+    .simple-admin-page__sort-select {
+        background: #4a5568;
+        border-color: #718096;
+        color: #f7fafc;
+    }
+
+    .simple-admin-page__sort-order {
+        background: #4a5568;
+        border-color: #718096;
+        color: #f7fafc;
+    }
+}
+
+
+
+

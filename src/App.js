@@ -1,162 +1,92 @@
-import React, { useState, useEffect } from 'react';
-import Sidebar from './components/Sidebar';
-import MainContent from './components/MainContent';
-import ExperimentSetup from './components/ExperimentSetup';
-import DataIngestionForm from './components/DataIngestionForm';
-import CausalInference from './components/CausalInference';
-import ExperimentDetail from './components/ExperimentDetail';
-import MMM from './components/MMM';
-import ModelCreation from './components/ModelCreation';
-import MMMDetail from './components/MMMDetail';
-import Integrations from './components/Integrations';
-import IntegrationDetail from './components/IntegrationDetail';
-import Blog from './components/Blog';
-import FAQs from './components/FAQs';
-import ChatBot from './components/ChatBot';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import ProtectedRoute from './components/Auth/ProtectedRoute';
+import LandingPage from './pages/LandingPage';
+import AppPage from './pages/AppPage';
+import AuthSuccess from './pages/AuthSuccess';
+import SimpleWaitlistPage from './pages/SimpleWaitlistPage';
+import SimpleAdminPage from './pages/SimpleAdminPage';
 import './App.css';
 
 function App() {
-  const [activeMenuItem, setActiveMenuItem] = useState('experiments');
-  const [expandedMenu, setExpandedMenu] = useState('measure');
-  const [showExperimentSetup, setShowExperimentSetup] = useState(false);
-  const [showDataIngestion, setShowDataIngestion] = useState(false);
-  const [showModelCreation, setShowModelCreation] = useState(false);
-  const [showExperimentDetail, setShowExperimentDetail] = useState(false);
-  const [showMMMDetail, setShowMMMDetail] = useState(false);
-  const [showIntegrationDetail, setShowIntegrationDetail] = useState(false);
-  const [selectedExperiment, setSelectedExperiment] = useState(null);
-  const [selectedModel, setSelectedModel] = useState(null);
-  const [selectedIntegration, setSelectedIntegration] = useState(null);
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  // Check if we're in waitlist mode
+  const isWaitlistMode = process.env.REACT_APP_WAITLIST_MODE === 'true';
+  
+  // Debug: Log the environment variable and mode
+  console.log('REACT_APP_WAITLIST_MODE:', process.env.REACT_APP_WAITLIST_MODE);
+  console.log('isWaitlistMode:', isWaitlistMode);
 
-  const handleCreateExperiment = () => {
-    setShowExperimentSetup(true);
-  };
+  // If in waitlist mode, show waitlist page for most routes, but allow direct app access via /alynling
+  if (isWaitlistMode) {
+    console.log('🎯 WAITLIST MODE ACTIVE - Using waitlist routing');
+    return (
+      <AuthProvider>
+        <Router>
+          <div className="app-root">
+            <Routes>
+              {/* Direct app access via /alynling - no authentication required */}
+              <Route 
+                path="/alynling" 
+                element={
+                  <div>
+                    {console.log('🚀 /alynling route matched - rendering AppPage')}
+                    <AppPage />
+                  </div>
+                } 
+              />
+              
+              {/* OAuth callback route (needed for /alynling access) */}
+              <Route path="/auth/success" element={<AuthSuccess />} />
+              
+              {/* All other routes show waitlist page */}
+              <Route 
+                path="*" 
+                element={
+                  <div>
+                    {console.log('📝 Wildcard route matched - rendering SimpleWaitlistPage')}
+                    <SimpleWaitlistPage />
+                  </div>
+                } 
+              />
+            </Routes>
+          </div>
+        </Router>
+      </AuthProvider>
+    );
+  }
 
-  const handleAnalyzeExperiment = () => {
-    setShowDataIngestion(true);
-  };
-
-  const handleExperimentClick = (experiment) => {
-    setSelectedExperiment(experiment);
-    setShowExperimentDetail(true);
-  };
-
-  const handleCreateModel = () => {
-    setShowModelCreation(true);
-  };
-
-  const handleModelClick = (model) => {
-    setSelectedModel(model);
-    setShowMMMDetail(true);
-  };
-
-  const handleIntegrationClick = (integration) => {
-    setSelectedIntegration(integration);
-    setShowIntegrationDetail(true);
-  };
-
-  const handleBackToMain = () => {
-    setShowExperimentSetup(false);
-    setShowDataIngestion(false);
-    setShowModelCreation(false);
-  };
-
-  const handleBackToMMM = () => {
-    setShowMMMDetail(false);
-    setSelectedModel(null);
-  };
-
-  const handleBackToIntegrations = () => {
-    setShowIntegrationDetail(false);
-    setSelectedIntegration(null);
-  };
-
-  const handleBackToExperiments = () => {
-    setShowExperimentDetail(false);
-    setSelectedExperiment(null);
-  };
-
-  const handleChatToggle = (isOpen) => {
-    setIsChatOpen(isOpen);
-  };
-
-  // Clear experiment detail when navigating away from experiments
-  useEffect(() => {
-    if (activeMenuItem !== 'experiments') {
-      setShowExperimentDetail(false);
-      setSelectedExperiment(null);
-    }
-  }, [activeMenuItem]);
-
-  // Clear MMM detail when navigating away from MMM
-  useEffect(() => {
-    if (activeMenuItem !== 'mmm') {
-      setShowMMMDetail(false);
-      setSelectedModel(null);
-    }
-  }, [activeMenuItem]);
-
-  // Clear integration detail when navigating away from integrations
-  useEffect(() => {
-    if (activeMenuItem !== 'integrations') {
-      setShowIntegrationDetail(false);
-      setSelectedIntegration(null);
-    }
-  }, [activeMenuItem]);
-
-  // 当左侧导航发生交互或视图切换时，自动收起右侧面板
-  useEffect(() => {
-    setIsChatOpen(false);
-  }, [activeMenuItem, expandedMenu, showExperimentSetup, showDataIngestion, showModelCreation, showMMMDetail, showIntegrationDetail, showExperimentDetail]);
-
-  const isFullScreen = showExperimentSetup || showDataIngestion || showModelCreation;
-
+  // Normal app mode with authentication
   return (
-    <div className={`app ${isFullScreen ? 'full-width' : ''}`}>
-      <div className={`sidebar-container ${isFullScreen || isChatOpen ? 'slide-out' : ''} ${isChatOpen ? 'chat-open' : ''}`}>
-        <Sidebar 
-          activeMenuItem={activeMenuItem}
-          setActiveMenuItem={setActiveMenuItem}
-          expandedMenu={expandedMenu}
-          setExpandedMenu={setExpandedMenu}
-        />
-      </div>
-      <div className={`main-container ${isFullScreen ? 'expand' : ''} ${isChatOpen ? 'chat-open' : ''}`}>
-        {showExperimentSetup ? (
-          <ExperimentSetup onBack={handleBackToMain} />
-        ) : showDataIngestion ? (
-          <DataIngestionForm onBack={handleBackToMain} />
-        ) : showModelCreation ? (
-          <ModelCreation onBack={handleBackToMain} />
-        ) : activeMenuItem === 'causal-inference' ? (
-          <CausalInference />
-        ) : activeMenuItem === 'integrations' && showIntegrationDetail ? (
-          <IntegrationDetail integration={selectedIntegration} onBack={handleBackToIntegrations} />
-        ) : activeMenuItem === 'integrations' ? (
-          <Integrations onIntegrationClick={handleIntegrationClick} />
-        ) : activeMenuItem === 'mmm' && showMMMDetail ? (
-          <MMMDetail model={selectedModel} onBack={handleBackToMMM} />
-        ) : activeMenuItem === 'mmm' ? (
-          <MMM onCreateModel={handleCreateModel} onModelClick={handleModelClick} />
-        ) : activeMenuItem === 'experiments' && showExperimentDetail ? (
-          <ExperimentDetail experiment={selectedExperiment} onBack={handleBackToExperiments} />
-        ) : activeMenuItem === 'blog' ? (
-          <Blog onBack={() => setActiveMenuItem('experiments')} />
-        ) : activeMenuItem === 'faqs' ? (
-          <FAQs onBack={() => setActiveMenuItem('experiments')} />
-        ) : (
-          <MainContent 
-            onCreateExperiment={handleCreateExperiment}
-            onAnalyzeExperiment={handleAnalyzeExperiment}
-            onExperimentClick={handleExperimentClick}
-          />
-        )}
-      </div>
-      
-      {/* ChatBot组件 - 全局显示 */}
-      <ChatBot onChatToggle={handleChatToggle} />
-    </div>
+    <AuthProvider>
+      <Router>
+        <div className="app-root">
+          <Routes>
+            {/* Landing page route */}
+            <Route path="/" element={<LandingPage />} />
+            
+            {/* OAuth callback route */}
+            <Route path="/auth/success" element={<AuthSuccess />} />
+            
+            {/* Protected app routes */}
+            <Route 
+              path="/app" 
+              element={
+                <ProtectedRoute fallback={<Navigate to="/" replace />}>
+                  <AppPage />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* Admin access (still available in normal mode) */}
+            <Route path="/alynling" element={<SimpleAdminPage />} />
+            
+            {/* Redirect any unknown routes to landing page */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </div>
+      </Router>
+    </AuthProvider>
   );
 }
 

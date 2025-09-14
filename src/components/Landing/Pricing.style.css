@@ -1,0 +1,343 @@
+/* Pricing Component Styles */
+.pricing {
+    padding: 6rem 0;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.pricing__container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+.pricing__header {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.pricing__badge {
+    display: inline-flex;
+    align-items: center;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+}
+
+.pricing__title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 1rem 0;
+    line-height: 1.2;
+}
+
+.pricing__subtitle {
+    font-size: 1.125rem;
+    color: #6b7280;
+    margin: 0;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.6;
+}
+
+.pricing__toggle {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 3rem;
+}
+
+.pricing__toggle-container {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 0.5rem;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.pricing__toggle-option {
+    background: none;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 500;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.pricing__toggle-option--active {
+    background: #3b82f6;
+    color: white;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+}
+
+.pricing__save-badge {
+    background: #10b981;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.pricing__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 2rem;
+    margin-bottom: 4rem;
+}
+
+.pricing__card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 2rem;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.pricing__card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+.pricing__card--popular {
+    border-color: #3b82f6;
+    box-shadow: 0 10px 25px rgba(59, 130, 246, 0.1);
+    transform: scale(1.05);
+}
+
+.pricing__card--popular::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    border-radius: 16px 16px 0 0;
+}
+
+.pricing__popular-badge {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.pricing__plan-header {
+    margin-bottom: 2rem;
+}
+
+.pricing__plan-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 0.5rem 0;
+}
+
+.pricing__plan-description {
+    font-size: 1rem;
+    color: #6b7280;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.pricing__price {
+    margin-bottom: 2rem;
+}
+
+.pricing__price-amount {
+    font-size: 3rem;
+    font-weight: 800;
+    color: #111827;
+    line-height: 1;
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+.pricing__savings {
+    font-size: 0.875rem;
+    color: #10b981;
+    font-weight: 600;
+    background: #ecfdf5;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.pricing__price-period {
+    font-size: 1rem;
+    color: #6b7280;
+    font-weight: 500;
+    margin-top: 0.5rem;
+}
+
+.pricing__price-note {
+    font-size: 0.875rem;
+    color: #9ca3af;
+    margin-top: 0.25rem;
+}
+
+.pricing__features {
+    margin-bottom: 2rem;
+}
+
+.pricing__features h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0 0 1rem 0;
+}
+
+.pricing__features ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.pricing__feature {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    font-size: 0.875rem;
+    color: #374151;
+    line-height: 1.5;
+}
+
+.pricing__feature-icon {
+    color: #10b981;
+    font-weight: 600;
+    flex-shrink: 0;
+    width: 16px;
+    text-align: center;
+}
+
+.pricing__feature--unavailable {
+    color: #9ca3af;
+}
+
+.pricing__feature--unavailable .pricing__feature-icon {
+    color: #f59e0b;
+}
+
+.pricing__limitations {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #f3f4f6;
+}
+
+.pricing__limitations h5 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #6b7280;
+    margin: 0 0 0.5rem 0;
+}
+
+.pricing__cta {
+    margin-top: auto;
+}
+
+.pricing__card--popular .pricing__cta button {
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    border: none;
+}
+
+.pricing__faq {
+    text-align: center;
+    margin-top: 4rem;
+}
+
+.pricing__faq h3 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 2rem 0;
+}
+
+.pricing__faq-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+}
+
+.pricing__faq-item {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: left;
+}
+
+.pricing__faq-item h4 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0 0 0.75rem 0;
+}
+
+.pricing__faq-item p {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin: 0;
+    line-height: 1.6;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .pricing {
+        padding: 4rem 0;
+    }
+
+    .pricing__container {
+        padding: 0 1rem;
+    }
+
+    .pricing__grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .pricing__card--popular {
+        transform: none;
+    }
+
+    .pricing__title {
+        font-size: 2rem;
+    }
+
+    .pricing__price-amount {
+        font-size: 2.5rem;
+    }
+
+    .pricing__toggle-container {
+        width: 100%;
+        max-width: 300px;
+    }
+
+    .pricing__toggle-option {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .pricing__faq-grid {
+        grid-template-columns: 1fr;
+    }
+}

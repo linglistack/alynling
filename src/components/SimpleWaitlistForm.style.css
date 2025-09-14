@@ -1,0 +1,307 @@
+/**
+ * 📝 SIMPLE WAITLIST FORM STYLES
+ * 
+ * Clean, minimal styling for the waitlist form
+ * - Responsive design
+ * - Accessible form elements
+ * - Success and error states
+ */
+
+.simple-waitlist-form {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 2rem;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e5e7eb;
+}
+
+.simple-waitlist-form__header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.simple-waitlist-form__header h2 {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 0.5rem 0;
+}
+
+.simple-waitlist-form__header p {
+    color: #6b7280;
+    font-size: 1rem;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.simple-waitlist-form__form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.simple-waitlist-form__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.simple-waitlist-form__label {
+    font-weight: 500;
+    color: #374151;
+    font-size: 0.875rem;
+}
+
+.simple-waitlist-form__input,
+.simple-waitlist-form__select {
+    padding: 0.75rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    background: #ffffff;
+}
+
+.simple-waitlist-form__input:focus,
+.simple-waitlist-form__select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.simple-waitlist-form__input--error {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.simple-waitlist-form__input:disabled,
+.simple-waitlist-form__select:disabled {
+    background-color: #f9fafb;
+    color: #6b7280;
+    cursor: not-allowed;
+}
+
+.simple-waitlist-form__field-error {
+    color: #ef4444;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.simple-waitlist-form__submit {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 0.875rem 1.5rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.simple-waitlist-form__submit:hover:not(:disabled) {
+    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.simple-waitlist-form__submit:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.simple-waitlist-form__spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.simple-waitlist-form__privacy {
+    font-size: 0.75rem;
+    color: #6b7280;
+    text-align: center;
+    margin: 0;
+    line-height: 1.4;
+}
+
+.simple-waitlist-form__error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #dc2626;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.simple-waitlist-form__error-icon {
+    font-size: 1rem;
+}
+
+/* Success State */
+.simple-waitlist-form__success {
+    text-align: center;
+    padding: 2rem 1rem;
+}
+
+.simple-waitlist-form__success-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    animation: bounce 0.6s ease-in-out;
+}
+
+@keyframes bounce {
+
+    0%,
+    20%,
+    53%,
+    80%,
+    100% {
+        transform: translate3d(0, 0, 0);
+    }
+
+    40%,
+    43% {
+        transform: translate3d(0, -10px, 0);
+    }
+
+    70% {
+        transform: translate3d(0, -5px, 0);
+    }
+
+    90% {
+        transform: translate3d(0, -2px, 0);
+    }
+}
+
+.simple-waitlist-form__success h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #059669;
+    margin: 0 0 0.5rem 0;
+}
+
+.simple-waitlist-form__success p {
+    color: #6b7280;
+    margin: 0 0 1.5rem 0;
+    line-height: 1.5;
+}
+
+.simple-waitlist-form__success-details {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: left;
+}
+
+.simple-waitlist-form__success-details p {
+    margin: 0.25rem 0;
+    font-size: 0.875rem;
+    color: #374151;
+}
+
+.simple-waitlist-form__success-details strong {
+    color: #059669;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+    .simple-waitlist-form {
+        margin: 1rem;
+        padding: 1.5rem;
+    }
+
+    .simple-waitlist-form__header h2 {
+        font-size: 1.5rem;
+    }
+
+    .simple-waitlist-form__form {
+        gap: 1.25rem;
+    }
+
+    .simple-waitlist-form__input,
+    .simple-waitlist-form__select {
+        padding: 0.625rem 0.875rem;
+    }
+
+    .simple-waitlist-form__submit {
+        padding: 0.75rem 1.25rem;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .simple-waitlist-form {
+        background: #1f2937;
+        border-color: #374151;
+    }
+
+    .simple-waitlist-form__header h2 {
+        color: #f9fafb;
+    }
+
+    .simple-waitlist-form__header p {
+        color: #d1d5db;
+    }
+
+    .simple-waitlist-form__label {
+        color: #e5e7eb;
+    }
+
+    .simple-waitlist-form__input,
+    .simple-waitlist-form__select {
+        background: #374151;
+        border-color: #4b5563;
+        color: #f9fafb;
+    }
+
+    .simple-waitlist-form__input:focus,
+    .simple-waitlist-form__select:focus {
+        border-color: #60a5fa;
+        box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+    }
+
+    .simple-waitlist-form__input:disabled,
+    .simple-waitlist-form__select:disabled {
+        background-color: #1f2937;
+        color: #9ca3af;
+    }
+
+    .simple-waitlist-form__privacy {
+        color: #9ca3af;
+    }
+
+    .simple-waitlist-form__success-details {
+        background: #064e3b;
+        border-color: #047857;
+    }
+
+    .simple-waitlist-form__success-details p {
+        color: #d1d5db;
+    }
+}
+
+
+
+
