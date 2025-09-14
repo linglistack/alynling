@@ -71,7 +71,7 @@ const SimpleWaitlistForm = ({ onSuccess }) => {
     try {
       // Use the correct API base URL (port 8080)
       const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
-      const response = await fetch(`${API_BASE_URL}/api/simple-waitlist/join`, {
+      const response = await fetch(`${API_BASE_URL}/api/node/simple-waitlist/join`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

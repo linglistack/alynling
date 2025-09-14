@@ -32,7 +32,7 @@ const limiter = rateLimit({
   }
 });
 
-app.use('/api/', limiter);
+app.use('/api/node', limiter);
 
 // CORS configuration
 const corsOptions = {
@@ -81,13 +81,13 @@ app.use(passport.session());
 // Connect to database
 connectDatabase();
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api', apiRoutes);
-app.use('/api/simple-waitlist', simpleWaitlistRoutes);
+// Routes - prepend /node to all routes
+app.use('/api/node/auth', authRoutes);
+app.use('/api/node/api', apiRoutes);
+app.use('/api/node/simple-waitlist', simpleWaitlistRoutes);
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/api/node/health', (req, res) => {
   res.json({
     success: true,
     message: 'Alyn Backend Server is running',
@@ -97,16 +97,16 @@ app.get('/health', (req, res) => {
 });
 
 // Root endpoint
-app.get('/', (req, res) => {
+app.get('/api/node/', (req, res) => {
   res.json({
     success: true,
     message: 'Welcome to Alyn Experiments API',
     version: '1.0.0',
     endpoints: {
-      auth: '/api/auth',
-      api: '/api',
-      waitlist: '/api/simple-waitlist',
-      health: '/health'
+      auth: '/api/node/auth',
+      api: '/api/node/api',
+      waitlist: '/api/node/simple-waitlist',
+      health: '/api/node/health'
     }
   });
 });
@@ -144,9 +144,9 @@ const startServer = async () => {
   try {
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📊 Health check: http://localhost:${PORT}/health`);
-      console.log(`🔐 Auth endpoints: http://localhost:${PORT}/api/auth`);
-      console.log(`📡 API endpoints: http://localhost:${PORT}/api`);
+      console.log(`📊 Health check: http://localhost:${PORT}/api/node/health`);
+      console.log(`🔐 Auth endpoints: http://localhost:${PORT}/api/node/auth`);
+      console.log(`📡 API endpoints: http://localhost:${PORT}/api/node`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     });
   } catch (error) {

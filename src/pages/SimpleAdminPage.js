@@ -33,7 +33,7 @@ const SimpleAdminPage = () => {
   const loadEntries = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/simple-waitlist/admin/entries');
+      const response = await fetch('/api/node/simple-waitlist/admin/entries');
       
       if (response.ok) {
         const data = await response.json();
@@ -51,7 +51,7 @@ const SimpleAdminPage = () => {
 
   const loadStats = async () => {
     try {
-      const response = await fetch('/api/simple-waitlist/admin/stats');
+      const response = await fetch('/api/node/simple-waitlist/admin/stats');
       
       if (response.ok) {
         const data = await response.json();
@@ -64,7 +64,7 @@ const SimpleAdminPage = () => {
 
   const handleExport = async () => {
     try {
-      const response = await fetch('/api/simple-waitlist/admin/export');
+      const response = await fetch('/api/node/simple-waitlist/admin/export');
       
       if (response.ok) {
         const blob = await response.blob();
@@ -91,7 +91,7 @@ const SimpleAdminPage = () => {
     }
 
     try {
-      const response = await fetch(`/api/simple-waitlist/admin/entries/${id}`, {
+      const response = await fetch(`/api/node/simple-waitlist/admin/entries/${id}`, {
         method: 'DELETE'
       });
 

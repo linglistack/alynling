@@ -144,7 +144,7 @@ const LoginForm = ({ onSuccess, onSwitchToSignup }) => {
         type="button"
         className="auth-form__google-button"
         onClick={() => {
-          window.location.href = `${process.env.REACT_APP_API_URL || 'http://localhost:8080'}/api/auth/google`;
+          window.location.href = `${process.env.REACT_APP_API_URL || 'http://localhost:8080'}/api/node/auth/google`;
         }}
         disabled={loading}
       >
