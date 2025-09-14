@@ -32,6 +32,8 @@ source(file.path(r_path, "pre_processing_data.R"))
 source(file.path(r_path, "pre_test_power.R"))
 source(file.path(r_path, "post_test_analysis.R"))
 source(file.path(r_path, "plots.R"))
+source(file.path(r_path, "custom_geolift_functions/plot_helper.R"))
+
 
 #* Enable CORS
 #* @filter cors
