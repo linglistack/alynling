@@ -3,6 +3,17 @@ library(dplyr)
 
 rank_helper <- function(MarketSelections, investment_weight) {
 
+  # sanity checks
+  if (investment_weight > 10) {
+    stop("investment_weight should never be above 10.")
+  }
+  if (investment_weight > 1) {
+    warning("investment_weight is usually set below 1. 
+             Larger values will heavily prioritize investment over scientific strength.")
+  }
+  if (investment_weight < 0) {
+    stop("investment_weight must be non-negative.")
+  }
   a <- investment_weight/10
 
   result <- MarketSelections$BestMarkets %>% 
