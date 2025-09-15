@@ -21,8 +21,19 @@ MarketSelections <- GeoLiftMarketSelection(data = GeoTestData_PreTest,
 treatment_periods = c(7, 9))
 
 
-plot(MarketSelections, 2)
-
+a = 0.05
+MarketSelections$BestMarkets %>% 
+  as_tibble() %>%
+  mutate(rank_mde = dplyr::dense_rank(abs(EffectSize)),
+    rank_pvalue = dplyr::dense_rank(Power),
+    rank_abszero = dplyr::dense_rank(abs_lift_in_zero),
+    rank_investment = dplyr:: dense_rank(Investment)) %>%
+  mutate(power_rank = rowMeans(across(c(rank_mde, rank_pvalue, rank_abszero)))) %>%
+  mutate(invest_weighted_rank = a * rank_investment + (1 - a) * power_rank) %>% 
+  arrange(invest_weighted_rank) %>%
+  mutate(invest_weighted_rank = rank(invest_weighted_rank, ties.method = "min")) %>%
+  ggplot(aes(x = invest_weighted_rank, y = Investment)) + 
+  geom_point()
 
 
 max_N = GeoTestData_PreTest$location %>% unique() %>% length()
