@@ -33,9 +33,7 @@ source(file.path(r_path, "pre_test_power.R"))
 source(file.path(r_path, "post_test_analysis.R"))
 source(file.path(r_path, "plots.R"))
 source(file.path(r_path, "custom_geolift_functions/plot_helper.R"))
-source(file.path(r_path, "custom_geolift_functions/gen_api_helper_fn.R"))
-source(file.path(r_path, "../api/cache.R"))
-
+source(file.path(r_path, "custom_geolift_functions/periodicity_helper.R"))
 
 #* Enable CORS
 #* @filter cors

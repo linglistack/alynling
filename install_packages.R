@@ -67,7 +67,7 @@ for (pkg in core_packages) {
 
 # 5. Install specialized packages
 cat("\n=== Installing specialized packages ===\n")
-specialized_packages <- c("gsynth", "panelView", "MarketMatching", "directlabels", "lifecycle")
+specialized_packages <- c("gsynth", "panelView", "MarketMatching", "directlabels", "lifecycle", "GeneCycle", "forecast")
 
 for (pkg in specialized_packages) {
   install_package_safely(pkg, "CRAN")
@@ -118,7 +118,7 @@ if (require("remotes", character.only = TRUE, quietly = TRUE)) {
 
 # 9. Verification
 cat("\n=== Verifying installation ===\n")
-critical_packages <- c("plumber", "jsonlite", "dplyr", "gsynth")
+critical_packages <- c("plumber", "jsonlite", "dplyr", "gsynth", "GeneCycle", "forecast")
 optional_packages <- c("devtools", "augsynth", "ragg")
 
 all_critical_ok <- TRUE

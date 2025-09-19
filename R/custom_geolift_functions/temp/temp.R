@@ -52,14 +52,6 @@ MarketSelections <- GeoLiftMarketSelection(data = GeoTestData_PreTest,
 
 
 
-
-
-
-
-
-
-
-
 MarketSelections$BestMarkets %>% 
   as_tibble() %>% 
   filter(Investment <= 100000)
@@ -88,6 +80,46 @@ plot(MarketSelections, 2)
 MarketSelections$BestMarkets %>% 
   as_tibble() %>%
   
+
+
+
+
+    ms <- NULL
+    if (exists("last_market_selection", envir = .cache_env) &&
+      !is.null(.cache_env$last_market_selection)) {
+      ms <- .cache_env$last_market_selection
+    }
+    if (is.null(ms)) {
+      cat("ERROR: No cached market_selection found in .cache_env\n")
+      stop("No cached market_selection available")
+    }
+
+    syn_lift <- GeoLift_lift_injection(ms, market_rank)
+    syn_lifted <- syn_lift$lifted
+    syn_power <- syn_lift$power
+
+    lifted_df <- GeoLift_lift_data(syn_lift)["t_obs"]
+
+
+
+
+    effect_size       <- get_param(body, "effect_size", seq(0, 0.25, 0.05), as.numeric)
+    two_sided <- (min(effect_size) < 0) & (max(effect_size) > 0)
+    side_of_test      <- get_param(body, "side_of_test", if (two_sided) "two_sided" else "one_sided", as.character)
+    treatment_periods <- get_param(body, "treatment_periods", max(7, min(periodicity, 60)), as.integer)
+    lookback_window   <- get_param(body, "lookback_window", lookback_window, as.integer)
+    cpic              <- get_param(body, "cpic", 1, as.numeric)
+    alpha             <- get_param(body, "alpha", 0.05, as.numeric)
+    N                 <- get_param(body, "N", seq(1, max_n, by = floor(max_n/10)), as.integer)
+    include_markets   <- get_param(body, "include_markets", c(), as.character)
+    exclude_markets   <- get_param(body, "exclude_markets", c(), as.character)
+    holdout           <- get_param(body, "holdout", c(0, 1), as.numeric)
+    budget            <- get_param(body, "budget", NULL, as.numeric)
+    fixed_effects     <- get_param(body, "fixed_effects", TRUE, as.logical)
+    Correlations      <- get_param(body, "Correlations", TRUE, as.logical)
+    Y_id              <- get_param(body, "Y_id", "Y", as.character)
+    location_id       <- get_param(body, "location_id", "location", as.character)
+    time_id           <- get_param(body, "time_id", "time", as.character)
 
 
 

@@ -10,6 +10,7 @@
 #' @docType package
 #' @name GeoLift
 #' @import augsynth
+#' @import forecast
 #' @importFrom directlabels geom_dl dl.combine
 #' @importFrom doParallel registerDoParallel
 #' @importFrom dplyr add_row arrange bind_rows coalesce dense_rank desc distinct
@@ -34,6 +35,7 @@
 #' @importFrom stringr fixed str_count str_replace_all str_split
 #' @importFrom tibble rownames_to_column
 #' @importFrom tidyr pivot_longer pivot_wider
+#' @importFrom GeneCycle fisher.g.test
 #' @importFrom utils combn flush.console head setTxtProgressBar txtProgressBar
 "_PACKAGE"
 
