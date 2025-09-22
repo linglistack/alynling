@@ -1166,7 +1166,7 @@ function(req, res) {
     tryCatch({
       geo_data <- GeoDataRead(
         data = data,
-        date_id = date_id,
+        time_id = date_id,
         location_id = location_id,
         Y_id = Y_id,
         X = c(), # No covariates
