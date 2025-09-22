@@ -8,7 +8,7 @@ This guide documents the complete setup of your Digital Ocean droplet running mu
 Internet → nginx (443/SSL) → Multiple Backend Services
                           ├── R API (port 8000) - GeoLift Analysis
                           ├── Python RAG API (port 5000) - AI Q&A
-                          └── [Future: Node.js API (port 3001)]
+                          └── Node.js API (port 8080) - Backend Services
 ```
 
 ## 📋 Current Services
@@ -26,6 +26,13 @@ Internet → nginx (443/SSL) → Multiple Backend Services
 - **Path**: `/opt/alyn/ai/`
 - **Nginx Route**: `/api/rag/`
 - **URL**: `https://142.93.8.101.sslip.io/api/rag/`
+
+### 3. Node.js API Service (Backend Services)
+- **Port**: 8080
+- **Service**: `node-api.service`
+- **Path**: `/opt/alyn/backend/`
+- **Nginx Route**: `/api/node/`
+- **URL**: `https://142.93.8.101.sslip.io/api/node/`
 
 ## 🔧 Service Configurations
 
@@ -71,6 +78,27 @@ Environment=PYTHONUNBUFFERED=1
 WantedBy=multi-user.target
 ```
 
+### Node.js API Service (`/etc/systemd/system/node-api.service`)
+```ini
+[Unit]
+Description=Node.js API Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/opt/alyn/backend
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=3
+StandardOutput=append:/var/log/node_out.log
+StandardError=append:/var/log/node_err.log
+Environment=NODE_ENV=production
+Environment=PORT=8080
+
+[Install]
+WantedBy=multi-user.target
+```
+
 ## 🌐 Nginx Configuration
 
 ### Main Config (`/etc/nginx/sites-available/geolift.conf`)
@@ -91,15 +119,17 @@ server {
     proxy_send_timeout 60s;
   }
 
-  # Future Node.js API example
-  # location /api/node/ {
-  #   proxy_set_header Host $host;
-  #   proxy_set_header X-Real-IP $remote_addr;
-  #   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-  #   proxy_set_header X-Forwarded-Proto $scheme;
-  #   proxy_pass http://127.0.0.1:3001/;
-  #   proxy_read_timeout 300;
-  # }
+  # Node.js API - route /api/node/ to Node.js backend (port 8080)
+  location /api/node/ {
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_pass http://127.0.0.1:8080/api/node/;
+    proxy_read_timeout 300;
+    proxy_connect_timeout 60s;
+    proxy_send_timeout 60s;
+  }
 
   # R API - catch-all location (must come AFTER specific locations)
   location / {
@@ -128,72 +158,58 @@ server {
 }
 ```
 
-## 🚀 Adding a New Service (e.g., Node.js API)
+## 🚀 Service Management and Deployment
 
-### Step 1: Create the Service
-1. **Prepare your application**:
-   ```bash
-   # Example for Node.js
-   mkdir -p /opt/alyn/node-api
-   cd /opt/alyn/node-api
-   # Deploy your Node.js application here
-   npm install
-   ```
+### Complete Service Restart Script
+Create a script to restart all services at once:
 
-2. **Create systemd service file**:
-   ```bash
-   sudo tee /etc/systemd/system/node-api.service >/dev/null <<'EOF'
-   [Unit]
-   Description=Node.js API Server
-   After=network-online.target
-   Wants=network-online.target
-
-   [Service]
-   WorkingDirectory=/opt/alyn/node-api
-   ExecStart=/usr/bin/node server.js
-   Restart=always
-   RestartSec=3
-   StandardOutput=append:/var/log/node_out.log
-   StandardError=append:/var/log/node_err.log
-   Environment=NODE_ENV=production
-   Environment=PORT=3001
-
-   [Install]
-   WantedBy=multi-user.target
-   EOF
-   ```
-
-### Step 2: Add Nginx Location Block
-1. **Edit nginx config**:
-   ```bash
-   sudo nano /etc/nginx/sites-available/geolift.conf
-   ```
-
-2. **Add location block** (BEFORE the catch-all `/` location):
-   ```nginx
-   # Node.js API
-   location /api/node/ {
-     proxy_set_header Host $host;
-     proxy_set_header X-Real-IP $remote_addr;
-     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-     proxy_set_header X-Forwarded-Proto $scheme;
-     proxy_pass http://127.0.0.1:3001/;
-     proxy_read_timeout 300;
-   }
-   ```
-
-### Step 3: Enable and Test
 ```bash
-# Enable and start the service
-sudo systemctl daemon-reload
-sudo systemctl enable --now node-api
+# Create restart script
+sudo tee /opt/alyn/restart-all-services.sh >/dev/null <<'EOF'
+#!/bin/bash
 
-# Test nginx config and reload
-sudo nginx -t
-sudo systemctl reload nginx
+echo "🔄 Restarting all Alyn services..."
 
-# Test the service
-curl https://142.93.8.101.sslip.io/api/node/health
+# Stop all services
+echo "⏹️  Stopping services..."
+sudo systemctl stop geolift-api
+sudo systemctl stop rag-api
+sudo systemctl stop node-api
+
+# Wait a moment
+sleep 2
+
+# Start all services
+echo "▶️  Starting services..."
+sudo systemctl start geolift-api
+sudo systemctl start rag-api
+sudo systemctl start node-api
+
+# Wait for services to start
+sleep 3
+
+# Check status
+echo "📊 Service status:"
+sudo systemctl status geolift-api --no-pager -l
+sudo systemctl status rag-api --no-pager -l
+sudo systemctl status node-api --no-pager -l
+
+# Test endpoints
+echo "🧪 Testing endpoints..."
+echo "R API Health:"
+curl -s https://142.93.8.101.sslip.io/health | head -1
+
+echo "Python RAG API Health:"
+curl -s https://142.93.8.101.sslip.io/api/rag/health | head -1
+
+echo "Node.js API Health:"
+curl -s https://142.93.8.101.sslip.io/api/node/health | head -1
+
+echo "✅ All services restarted!"
+EOF
+
+# Make executable
+sudo chmod +x /opt/alyn/restart-all-services.sh
 ```
 
 ## 🔄 Updating and Rebuilding Services
@@ -240,19 +256,25 @@ sudo systemctl status rag-api --no-pager
 sudo tail -f /var/log/rag_out.log
 ```
 
-### Node.js API Updates (Future)
+### Node.js API Updates
 ```bash
 # Stop the service
 sudo systemctl stop node-api
 
 # Update code
-cd /opt/alyn/node-api
-git pull
-npm install  # update dependencies
+cd /opt/alyn/backend
+git pull  # if using git
+# OR manually upload new files
+
+# Update dependencies if needed
+npm install
 
 # Restart the service
 sudo systemctl start node-api
 sudo systemctl status node-api --no-pager
+
+# Check logs if needed
+sudo tail -f /var/log/node_out.log
 ```
 
 ## 📊 Service Management Commands
@@ -280,19 +302,34 @@ sudo tail -f /var/log/SERVICE_out.log
 ### Current Services
 - `geolift-api` - R API
 - `rag-api` - Python RAG API
+- `node-api` - Node.js API
 - `nginx` - Web server
 
 ### Quick Status Check
 ```bash
 # Check all services
-sudo systemctl status geolift-api rag-api nginx --no-pager
+sudo systemctl status geolift-api rag-api node-api nginx --no-pager
 
 # Check listening ports
-sudo netstat -tlnp | grep -E ":(80|443|8000|5000|3001)"
+sudo netstat -tlnp | grep -E ":(80|443|8000|5000|8080)"
 
 # Test all endpoints
 curl https://142.93.8.101.sslip.io/health  # R API
 curl https://142.93.8.101.sslip.io/api/rag/health  # Python RAG API
+curl https://142.93.8.101.sslip.io/api/node/health  # Node.js API
+```
+
+### Quick Commands
+```bash
+# Restart all services
+/opt/alyn/restart-all-services.sh
+
+# Check all logs
+sudo tail -f /var/log/geolift_out.log    # R API
+sudo tail -f /var/log/rag_out.log        # Python RAG API
+sudo tail -f /var/log/node_out.log       # Node.js API
+sudo tail -f /var/log/nginx/access.log   # Nginx access
+sudo tail -f /var/log/nginx/error.log    # Nginx errors
 ```
 
 ## 🐛 Troubleshooting
@@ -334,6 +371,7 @@ curl https://142.93.8.101.sslip.io/api/rag/health  # Python RAG API
 ### Log Locations
 - **R API**: `/var/log/geolift_out.log`, `/var/log/geolift_err.log`
 - **Python RAG API**: `/var/log/rag_out.log`, `/var/log/rag_err.log`
+- **Node.js API**: `/var/log/node_out.log`, `/var/log/node_err.log`
 - **Nginx**: `/var/log/nginx/access.log`, `/var/log/nginx/error.log`
 - **Systemd**: `sudo journalctl -u SERVICE_NAME`
 
@@ -354,8 +392,11 @@ curl https://142.93.8.101.sslip.io/api/rag/health  # Python RAG API
 │   ├── hybrid_rag_api.py
 │   ├── rag_env/           # Python virtual environment
 │   └── ...
-└── node-api/              # Future Node.js API
+└── backend/               # Node.js API
     ├── server.js
+    ├── routes/
+    ├── models/
+    ├── middleware/
     └── ...
 ```
 
@@ -374,8 +415,8 @@ curl https://142.93.8.101.sslip.io/api/rag/health  # Python RAG API
 4. Reload systemd and nginx:
    ```bash
    sudo systemctl daemon-reload
-   sudo systemctl enable geolift-api rag-api
-   sudo systemctl start geolift-api rag-api
+   sudo systemctl enable geolift-api rag-api node-api
+   sudo systemctl start geolift-api rag-api node-api
    sudo nginx -t && sudo systemctl reload nginx
    ```
 
