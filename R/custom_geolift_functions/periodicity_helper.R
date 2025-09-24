@@ -50,7 +50,7 @@ detect_periodicity <- function(x, alpha = 0.05, m = 2, tol = 5) {
       filter(period >= 3, is.finite(period)) %>%
       arrange(desc(power))
     
-    # Take a generous set of candidates (e.g. 3m)
+    # Take a generous set of candidates (e.g. 2m)
     df <- df %>% slice_head(n = m * 2)
     
     # Step 2.5: Merge close periods (within ± tol)
@@ -174,4 +174,4 @@ analyze_timeseries <- function(data, location_col, value_col, m = 2, tol = 5) {
 
 
 # # Example: 
-# analyze_timeseries(data = temp, location_col = "city", "app_per_pop")
+# analyze_timeseries(data = df, location_col = "city", "app_per_pop")
