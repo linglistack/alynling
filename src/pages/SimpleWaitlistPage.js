@@ -44,6 +44,7 @@ const SimpleWaitlistPage = () => {
     handleJoinWaitlist();
   };
 
+
   return (
     <div className="simple-waitlist-page">
       {/* Header - same as LandingPage but with waitlist CTA */}
@@ -72,6 +73,7 @@ const SimpleWaitlistPage = () => {
 
       {/* Main Content */}
       <main className="simple-waitlist-page__main">
+
         {/* Waitlist Hero Section - replaces the normal Hero */}
         <section className="simple-waitlist-page__hero">
           <div className="simple-waitlist-page__hero-container">
@@ -97,7 +99,6 @@ const SimpleWaitlistPage = () => {
                 >
                   Join Waitlist
                 </Button>
-               
               </div>
               
               <div className="simple-waitlist-page__hero-stats">
@@ -125,7 +126,31 @@ const SimpleWaitlistPage = () => {
             </div>
           </div>
         </section>
-        
+        {/* Interactive Figma Section */}
+        <section className="simple-waitlist-page__figma-section">
+          <div className="simple-waitlist-page__figma-container">
+          <div className="features__badge">
+            Demo Platform
+          </div>
+            <h2 className="simple-waitlist-page__figma-title">
+            Click and interact with our platform demo
+            </h2>
+            {/* <p className="simple-waitlist-page__figma-subtitle">
+              Click and interact with our platform demo
+            </p> */}
+            <div className="simple-waitlist-page__figma-iframe">
+              <iframe
+                className="simple-waitlist-page__figma-iframe-content"
+                src="https://red-goal-35465634.figma.site/"
+                allowFullScreen
+                allow="fullscreen; clipboard-write; clipboard-read; autoplay; camera; microphone; geolocation"
+                sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-top-navigation allow-modals allow-downloads"
+                title="Interactive Platform Design"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
+          </div>
+        </section>
         {/* Use existing Features component */}
         <div id="features">
           <Features onGetStarted={handleJoinWaitlist} />

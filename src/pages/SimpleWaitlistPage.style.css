@@ -582,6 +582,126 @@
     }
 }
 
+/* Figma Section */
+.simple-waitlist-page__figma-section {
+    background: #ffffff;
+    padding: 4rem 0 0 0;
+    margin: 2rem 0 0 0;
+}
+
+.simple-waitlist-page__figma-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    text-align: center;
+}
+
+.simple-waitlist-page__figma-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 1rem 1rem 0;
+}
+
+.simple-waitlist-page__figma-subtitle {
+    font-size: 1.25rem;
+    color: #6b7280;
+    margin: 0 0 3rem 0;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.simple-waitlist-page__figma-iframe {
+    background: #f8fafc;
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
+}
+
+.simple-waitlist-page__figma-iframe-content {
+    width: 100%;
+    height: 600px;
+    border: none;
+    border-radius: 12px;
+    display: block;
+    background: #ffffff;
+    pointer-events: auto;
+    user-select: auto;
+    -webkit-user-select: auto;
+    -moz-user-select: auto;
+    -ms-user-select: auto;
+}
+
+.simple-waitlist-page__figma-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+/* Responsive Design for Figma Section */
+@media (max-width: 1024px) {
+    .simple-waitlist-page__figma-container {
+        padding: 0 1rem;
+    }
+
+    .simple-waitlist-page__figma-title {
+        font-size: 2rem;
+    }
+
+    .simple-waitlist-page__figma-iframe-content {
+        height: 500px;
+    }
+}
+
+@media (max-width: 768px) {
+    .simple-waitlist-page__figma-section {
+        padding: 3rem 0;
+        margin: 1rem 0;
+    }
+
+    .simple-waitlist-page__figma-title {
+        font-size: 1.75rem;
+    }
+
+    .simple-waitlist-page__figma-subtitle {
+        font-size: 1rem;
+    }
+
+    .simple-waitlist-page__figma-iframe {
+        padding: 1rem;
+    }
+
+    .simple-waitlist-page__figma-iframe-content {
+        height: 400px;
+    }
+}
+
+@media (max-width: 640px) {
+    .simple-waitlist-page__figma-title {
+        font-size: 1.5rem;
+    }
+
+    .simple-waitlist-page__figma-subtitle {
+        font-size: 0.9rem;
+    }
+
+    .simple-waitlist-page__figma-iframe {
+        padding: 0.75rem;
+    }
+
+    .simple-waitlist-page__figma-iframe-content {
+        height: 300px;
+    }
+
+    .simple-waitlist-page__figma-actions {
+        flex-direction: column;
+        align-items: center;
+    }
+}
+
 /* Smooth scrolling for anchor links */
 html {
     scroll-behavior: smooth;
