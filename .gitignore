@@ -6,3 +6,7 @@ Rplots.pdf
 /GeoLift
 .env
 /backend/node_modules
+api/storage_temp/clean_df/*
+api/storage_temp/geolift/*
+api/storage_temp/market_selection/*
+api/storage_temp/rank_df/*

@@ -1,17 +1,17 @@
-# app.R
 library(shiny)
 library(httr)
 library(jsonlite)
 library(ggplot2)
+library(dplyr)
 
 upload_ui <- function(id) {
   ns <- NS(id)
   tagList(
     h4("Step 1: Upload & preprocess data"),
     fileInput(ns("file"), "Upload CSV File", accept = ".csv"),
-    textInput(ns("location_col"), "Location column", "city"),
+    textInput(ns("location_col"), "Location column", "location"),
     textInput(ns("time_col"), "Time column", "date"),
-    textInput(ns("outcome_col"), "Outcome column", "app_per_pop"),
+    textInput(ns("outcome_col"), "Outcome column", "Y"),
     textInput(ns("format"), "Date format", "yyyy-mm-dd"),
     textInput(ns("X"), "Other vars (comma-separated)", ""),
     actionButton(ns("submit"), "Submit to API"),
@@ -23,19 +23,70 @@ upload_ui <- function(id) {
 
 upload_server <- function(id, api_url) {
   moduleServer(id, function(input, output, session) {
+    ns <- session$ns
     rv <- reactiveValues(dataset_id = NULL, data_preview = NULL)
 
-    observeEvent(input$submit, {
+    # Step 1: user uploads CSV → autodetect
+    observeEvent(input$file, {
       req(input$file)
+
       csv_data <- readChar(
         input$file$datapath,
         file.info(input$file$datapath)$size
       )
 
       res <- POST(
+        url = paste0(api_url, "/api/upload_autodetect"),
+        body = list(csv_data = csv_data),
+        encode = "json"
+      )
+
+      if (http_error(res)) {
+        showNotification("Autodetect failed", type = "error")
+        return()
+      }
+
+      result <- content(res, as = "parsed", type = "application/json")$output_obj
+
+      # Save data_ID for next step
+      rv$dataset_id <- result$data_ID
+
+      safe_first <- function(x, default) {
+        if (is.null(x) || length(x) == 0) {
+          default
+        } else {
+          x[[1]]
+        }
+      }
+
+      # Auto-fill text boxes with first suggestion if available
+      updateTextInput(
+        session,
+        "time_col",
+        value = safe_first(result$suggestions$time, "date")
+      )
+      updateTextInput(
+        session,
+        "location_col",
+        value = safe_first(result$suggestions$location, "location")
+      )
+      updateTextInput(
+        session,
+        "outcome_col",
+        value = safe_first(result$suggestions$outcome, "Y")
+      )
+
+      showNotification("Autodetect complete. Please review column names.")
+    })
+
+    # Step 2: user hits submit → finalize upload
+    observeEvent(input$submit, {
+      req(rv$dataset_id)
+
+      res <- POST(
         url = paste0(api_url, "/api/data/upload"),
         body = list(
-          csv_data = csv_data,
+          data_ID = rv$dataset_id,
           location_col = input$location_col,
           time_col = input$time_col,
           outcome_col = input$outcome_col,
@@ -46,18 +97,13 @@ upload_server <- function(id, api_url) {
       )
 
       if (http_error(res)) {
-        showNotification(
-          paste("Upload failed:", status_code(res)),
-          type = "error"
-        )
+        showNotification("Upload failed", type = "error")
         return()
       }
 
-      result <- content(res, as = "parsed", type = "application/json")
+      result <- content(res, as = "parsed", simplifyVector = TRUE)$output_obj
 
-      rv$dataset_id <- result$data_ID %||% result$dataset_id
-
-      # Try to coerce data into data.frame
+      # Save preview
       if (!is.null(result$data)) {
         rv$data_preview <- as.data.frame(result$data)
       }
@@ -65,12 +111,9 @@ upload_server <- function(id, api_url) {
       showNotification(paste("Upload successful. Dataset ID:", rv$dataset_id))
     })
 
-    # render preview table
-    output$data_preview <- renderTable({
-      rv$data_preview
-    })
+    # Preview
+    output$data_preview <- renderTable(head(rv$data_preview))
 
-    # return just the dataset_id for chaining
     return(reactive(rv$dataset_id))
   })
 }
@@ -78,29 +121,50 @@ upload_server <- function(id, api_url) {
 
 market_selection_ui <- function(id) {
   ns <- NS(id)
+  tags$head(
+    tags$style(HTML(
+      "
+    .highlight-input input {
+      border: 2px solid red;
+      background-color: #fff8f8;
+    }
+  "
+    ))
+  )
+
   tagList(
     h4("Step 2: Market selection parameters"),
-    numericInput(ns("cpic"), "CPIC", 1, min = 0),
+    numericInput(ns("number_of_cells"), "Number of Cells: BASIC", 1, min = 1),
     textInput(
       ns("treatment_periods"),
-      "Treatment periods (comma-separated)",
+      "Treatment periods (comma-separated): BASIC",
       ""
     ),
-    textInput(ns("include_markets"), "Include markets (comma-separated)", ""),
-    textInput(ns("exclude_markets"), "Exclude markets (comma-separated)", ""),
-    textInput(ns("X2"), "Other vars (comma-separated)", ""),
-    numericInput(ns("size_of_effect"), "Size of effect", 0.3),
+    numericInput(ns("cpic"), "CPIC: BASIC", 1, min = 0),
+    textInput(
+      ns("include_markets"),
+      "Include Markets (comma-separated): BASIC",
+      ""
+    ),
+    textInput(
+      ns("exclude_markets"),
+      "Exclude Markets (comma-separated): BASIC",
+      ""
+    ),
+    checkboxInput("quick_result", "Quick Result: BASIC", value = FALSE),
+    textInput(ns("X2"), "Other Vars (comma-separated): ADV", ""),
+    numericInput(ns("size_of_effect"), "Max Size of Effect: ADV", 0.3),
     selectInput(
       ns("direction_of_effect"),
-      "Direction of effect",
+      "Direction of Effect: ADV",
       c("pos", "neg", "both")
     ),
-    numericInput(ns("alpha"), "Alpha", 0.05),
-    textInput(ns("N"), "N (comma-separated)", 3),
-    textInput(ns("holdout"), "Holdout (comma-separated)", ""),
-    numericInput(ns("budget"), "Budget", NA),
-    checkboxInput(ns("fixed_effects"), "Fixed effects", TRUE),
-    checkboxInput(ns("Correlations"), "Correlations", TRUE),
+    numericInput(ns("alpha"), "Alpha: ADV", 0.05),
+    textInput(ns("N"), "N (comma-separated): ADV", 3),
+    numericInput(ns("min_holdout"), "Mininum Holdout: ADV", 0),
+    numericInput(ns("max_holdout"), "Maxinum Holdout: ADV", 1),
+    numericInput(ns("budget"), "Strict Budget Limit: ADV", NA),
+    checkboxInput(ns("fixed_effects"), "Fixed Effects: ADV", TRUE),
     actionButton(ns("market_select"), "Select Market"),
     hr(),
     h3("top choices"),
@@ -110,7 +174,6 @@ market_selection_ui <- function(id) {
 
 market_selection_server <- function(id, api_url, dataset_id) {
   moduleServer(id, function(input, output, session) {
-
     # return value: will hold obj_ID once available
     obj_ID_reactive <- reactiveVal(NULL)
 
@@ -129,6 +192,7 @@ market_selection_server <- function(id, api_url, dataset_id) {
         body = list(
           data_ID = dataset_id(),
           cpic = input$cpic,
+          number_of_cells = input$number_of_cells,
           treatment_periods = as.integer(parse_csv(input$treatment_periods)),
           include_markets = parse_csv(input$include_markets),
           exclude_markets = parse_csv(input$exclude_markets),
@@ -137,10 +201,11 @@ market_selection_server <- function(id, api_url, dataset_id) {
           direction_of_effect = input$direction_of_effect,
           alpha = input$alpha,
           N = as.integer(parse_csv(input$N)),
-          holdout = as.numeric(parse_csv(input$holdout)),
+          min_holdout = as.numeric(input$min_holdout),
+          max_holdout = as.numeric(input$max_holdout),
           budget = if (is.na(input$budget)) NULL else input$budget,
-          fixed_effects = input$fixed_effects,
-          Correlations = input$Correlations
+          quick_result = input$quick$result,
+          fixed_effects = input$fixed_effects
         ),
         encode = "json"
       )
@@ -153,7 +218,7 @@ market_selection_server <- function(id, api_url, dataset_id) {
         return()
       }
 
-      result <- content(res, as = "parsed", simplifyVector = TRUE)
+      result <- content(res, as = "parsed", simplifyVector = TRUE)$output_obj
 
       # store obj_ID for later use
       obj_ID_reactive(result$obj_ID)
@@ -173,65 +238,55 @@ market_selection_server <- function(id, api_url, dataset_id) {
 power_analysis_ui <- function(id) {
   ns <- NS(id)
   tagList(
-    numericInput(ns("location_ID"), "Location ID", value = 1, min = 1),
+    textInput(ns("location_ID"), "Location IDs (comma-separated)", value = "1"),
     actionButton(ns("run_power"), "Run Power Analysis"),
     hr(),
-    plotOutput(ns("lifted_plot")),
-    plotOutput(ns("power_plot"))
+    h4("Lifted Data (top 10 rows)"),
+    tableOutput(ns("lifted_table")),
+    h4("Power Data (top 10 rows)"),
+    tableOutput(ns("power_table"))
   )
 }
 
 power_analysis_server <- function(id, api_url, obj_ID) {
   moduleServer(id, function(input, output, session) {
-
     observeEvent(input$run_power, {
       req(obj_ID())
 
+      loc_ids <- strsplit(input$location_ID, ",\\s*")[[1]]
       res <- POST(
         url = paste0(api_url, "/api/power-analysis"),
         body = list(
           obj_ID = obj_ID(),
-          location_ID = as.integer(input$location_ID)
+          location_ID = as.integer(loc_ids[loc_ids != ""])
         ),
         encode = "json"
       )
 
       if (http_error(res)) {
-        showNotification(paste("Power analysis failed:", status_code(res)), type = "error")
+        showNotification(
+          paste("Power analysis failed:", status_code(res)),
+          type = "error"
+        )
         return()
       }
 
-      result <- content(res, as = "parsed", simplifyVector = TRUE)
+      result <- content(res, as = "parsed", simplifyVector = TRUE)$output_obj
 
+      lifted_data <- as.data.frame(result$lifted_data)
 
-      lifted_data  <- as.data.frame(result$lifted_data)
       lifted_power <- as.data.frame(result$lifted_power)
 
-      # Treatment Effect Over Time
-      output$lifted_plot <- renderPlot({
-        ggplot(lifted_data, aes(x = Time)) +
-          geom_line(aes(y = t_obs, colour = "Treatment")) +
-          geom_line(aes(y = c_obs, colour = "Control")) +
-          geom_ribbon(
-            aes(ymin = c_obs_lower_bound, ymax = c_obs_upper_bound),
-            alpha = 0.2, fill = "blue"
-          ) +
-          labs(title = "Treatment Effect Over Time", y = "Observed Value") +
-          theme_minimal()
+      output$lifted_table <- renderTable({
+        head(lifted_data, 10)
       })
 
-      # Power Curve
-      output$power_plot <- renderPlot({
-        ggplot(lifted_power, aes(x = EffectSize, y = power)) +
-          geom_line(colour = "darkred") +
-          labs(title = "Power Curve: Effect Size vs. Statistical Power",
-               x = "Effect Size", y = "Power") +
-          theme_minimal()
+      output$power_table <- renderTable({
+        head(lifted_power, 10)
       })
     })
   })
 }
-
 
 
 ui <- fluidPage(
@@ -249,7 +304,7 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   dataset_id <- upload_server("uploader", api_url)
-  obj_ID     <- market_selection_server("selector", api_url, dataset_id)
+  obj_ID <- market_selection_server("selector", api_url, dataset_id)
   power_analysis_server("power", api_url, obj_ID)
 }
 

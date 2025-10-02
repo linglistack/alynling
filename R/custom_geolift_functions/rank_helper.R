@@ -1,4 +1,5 @@
 library(dplyr)
+library(purrr)
 
 
 rank_helper <- function(MarketSelections, investment_weights) {
@@ -41,3 +42,13 @@ rank_helper <- function(MarketSelections, investment_weights) {
   return(result)
 }
 
+collect_rankings <- function(Markets, investment_weights) {
+  stopifnot("Models" %in% names(Markets))
+  
+  purrr::imap_dfr(Markets$Models, function(glms_obj, cell_name) {
+    ranked <- rank_helper(glms_obj, investment_weights)
+    ranked %>%
+      dplyr::mutate(cell = readr::parse_number(cell_name))
+  }) %>% 
+    arrange(rank, ID, cell)
+}

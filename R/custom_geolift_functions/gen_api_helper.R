@@ -3,23 +3,28 @@ library(lubridate)
 
 # General Purpose --------------------------------------------------------
 
-save_item <- function(r_path, relative_path, obj, type = c("csv", "rds")) {
+save_item <- function(r_path, relative_path, obj, type = c("csv", "rds"), overwrite_ID = NULL) {
   type <- match.arg(type)
 
   api_path <- file.path(r_path, "..", "api", "storage_temp", relative_path)
 
   if (!dir.exists(api_path)) dir.create(api_path, recursive = TRUE)
 
-  id <- paste0(
-    ifelse(type == "csv", "ds_", "obj_"),
-    as.integer(Sys.time())
-  )
+  id <- if (!is.null(overwrite_ID)) {
+    overwrite_ID
+  } else {
+    paste0(
+      ifelse(type == "csv", "ds_", "obj_"),
+      as.integer(Sys.time())
+    )
+  }
+
 
   ext <- ifelse(type == "csv", ".csv", ".rds")
   path <- file.path(api_path, paste0(id, ext))
 
   if (type == "csv") {
-    readr::write_csv(obj, path)
+    readr::write_csv(as.data.frame(obj), path)
   } else {
     saveRDS(obj, path)
   }
@@ -75,6 +80,34 @@ merge_args <- function(required, optional) {
   }
   required
 }
+
+# # helper: remove optional args from required list
+# prune_args <- function(required, optional) {
+#   drop <- intersect(names(required), names(optional))
+#   required[setdiff(names(required), drop)]
+# }
+
+
+# Detect candidate columns for a specific role
+# df: a data.frame
+# role: string, one of "time", "location", "outcome"
+# Detect candidate columns by strict match (ignore case)
+detect_candidates <- function(df, variants) {
+  cn <- names(df)
+  
+  # force lowercase comparison
+  cn_lower <- tolower(cn)
+  variants_lower <- tolower(variants)
+  
+  matches <- cn[cn_lower %in% variants_lower]
+  
+  if (length(matches) == 0) {
+    return(NULL)
+  }
+  
+  unique(matches)
+}
+
 
 
 
@@ -301,9 +334,93 @@ run_validators <- function(data, validators) {
   )
 }
 
+validate_against_pool <- function(pool, input_list, label = "values") {
+
+  success <- TRUE
+  error_msg <- character()
+  warn <- character()
+  output_obj <- NULL
+
+  result <- tryCatch({
+    # normalize everything to lowercase for comparison
+    pool_lower <- unique(tolower(pool))
+    input_lower <- unique(tolower(input_list))
+
+    valid <- input_list[tolower(input_list) %in% pool_lower] %>% unique()
+    invalid <- input_list[!tolower(input_list) %in% pool_lower] %>% unique()
+
+    if (length(invalid) > 0) {
+      warn <- paste(
+        "The following", label, "are not in the pool and were ignored:",
+        paste(invalid, collapse = ", ")
+      )
+    }
+
+    output_obj <- list(valid_list = valid, invalid_list = invalid)
+
+    list(
+      success = TRUE,
+      warn = warn,
+      error_msg = character(),
+      output_obj = output_obj
+    )
+  }, error = function(e) {
+    list(
+      success = FALSE,
+      warn = NULL,
+      error_msg = paste("Validation failed:", e$message),
+      output_obj = NULL
+    )
+  })
+
+  return(result)
+}
+
+
+
+combine_results <- function(results) {
+  success   <- TRUE
+  warns     <- character()
+  errors    <- character()
+  
+  tryCatch({
+    for (res in results) {
+      # Defensive: if fields are missing, treat as error
+      if (is.null(res$success) || is.null(res$warn) || is.null(res$error_msg)) {
+        success <- FALSE
+        errors  <- c(errors, "One or more results missing expected fields.")
+      } else {
+        success <- success && isTRUE(res$success)
+        if (!is.null(res$warn)) warns <- c(warns, res$warn)
+        if (!is.null(res$error_msg) && res$error_msg != "") {
+          errors <- c(errors, res$error_msg)
+        }
+      }
+    }
+  }, error = function(e) {
+    success <- FALSE
+    errors  <- c(errors, paste("combine_validation_results failed:", e$message))
+  })
+  
+  list(
+    success   = success,
+    warn      = if (length(warns) > 0) warns else NULL,
+    error_msg = if (length(errors) > 0) errors else NULL,
+    output_obj = NULL
+  )
+}
+
+
+
+
 # Market Selection --------------------------------------------------------
 create_effect_size_list <- function(size, direction, steps = 10) {
   size = abs(size)
+
+  if(size > 1 | size == 0) {
+    size <- 1
+  }
+
   if (direction != "both") {
     effect_size = seq(0, size, by = size/steps)
   } else {
@@ -314,4 +431,52 @@ create_effect_size_list <- function(size, direction, steps = 10) {
     effect_size = -effect_size
   }
   return(effect_size)
+}
+
+
+# GeoLift -----------------------------------------------------------------
+
+validate_locations <- function(locations, data) {
+  success <- TRUE
+  error_msg <- character()
+  warn <- character()
+  
+  # 1. Must be a list-of-lists-of-strings
+  if (!is.list(locations) || length(locations) == 0) {
+    return(list(success = FALSE, error_msg = "locations must be a non-empty list", warn = NULL))
+  }
+  
+  # Check all elements are character vectors
+  if (!all(sapply(locations, function(x) is.character(x) || (is.list(x) && all(sapply(x, is.character)))))) {
+    return(list(success = FALSE, error_msg = "locations must be a 2-layer list, with innermost values as character vectors", warn = NULL))
+  }
+  
+  # 2. Cells cannot overlap
+  all_locs <- unlist(locations, use.names = FALSE)
+  if (any(duplicated(tolower(all_locs)))) {
+    dupes <- unique(all_locs[duplicated(tolower(all_locs))])
+    return(list(success = FALSE, error_msg = paste("Overlapping locations across cells:", paste(dupes, collapse = ", ")), warn = NULL))
+  }
+  
+  # 3. All locations must exist in dataset
+  dataset_locs <- unique(tolower(as.character(data$location)))
+  missing <- setdiff(tolower(all_locs), dataset_locs)
+  if (length(missing) > 0) {
+    warn <- paste("The following locations are not present in dataset and will be ignored:", paste(missing, collapse = ", "))
+    # strip out missing from locations
+    locations <- lapply(locations, function(x) x[tolower(x) %in% dataset_locs])
+  }
+  
+  # 4. Force names to "cell_1", "cell_2", ...
+  expected_names <- paste0("cell_", seq_along(locations))
+
+  if (is.null(names(locations)) || any(names(locations) != expected_names)) {
+    warn <- c(warn, paste(
+      "Cell names were reset. Expected names:",
+      paste(expected_names, collapse = ", ")
+    ))
+    names(locations) <- expected_names
+  }
+  
+  return(list(success = success, error_msg = error_msg, warning = warn, output_obj = locations))
 }

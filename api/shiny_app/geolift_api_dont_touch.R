@@ -153,6 +153,7 @@ function(req, res) {
   include_markets <- get_param(body, "include_markets", NULL, as.character)$value
   exclude_markets <- get_param(body, "exclude_markets", NULL, as.character)$value
   X <- get_param(body, "X", NULL, as.character)$value
+  quick_result <- get_param(body, "quick_result", TRUE, as.logical)$value
 
   # the less necessary parameters
   alpha <- get_param(body, "alpha", 0.05, as.numeric)$value
@@ -173,7 +174,7 @@ function(req, res) {
     get_mode()
 
   ts_analysis <- analyze_timeseries(data, "location", "Y")
-  print(ts_analysis)
+
   small_period <- ts_analysis[["period_1"]] %>% get_mode()
 
   # defaulting the treatment period to be the smallest period detected
@@ -190,6 +191,7 @@ function(req, res) {
 
   pre_treatment_length <- n_time - treatment_length
   lookback_window = max(round(pre_treatment_length/10), small_period, 5)
+  lookback_window = ifelse(quick_result, 1, lookback_window)
 
   effect_size <- create_effect_size_list(size_of_effect, direction_of_effect)
 
@@ -208,11 +210,12 @@ function(req, res) {
     doParallel::registerDoParallel(parallel::detectCores())
   }
 
+
   args <- list(
     data = data,
     treatment_periods = treatment_periods,
     effect_size = effect_size,
-    lookback_window = 1,
+    lookback_window = lookback_window,
     cpic = cpic,
     alpha = alpha,
     side_of_test = side_of_test,
@@ -230,6 +233,7 @@ function(req, res) {
     holdout = holdout,
     budget = budget
   )
+
   final_args <- merge_args(args, optional_args)
 
 
@@ -245,7 +249,7 @@ function(req, res) {
     success = TRUE,
     obj_ID = obj_ID,
     rank_df_ID = rank_df_ID,
-    top_choices = head(top_choices, 20)
+    top_choices = head(top_choices, 10)
   )
 }
 
@@ -351,3 +355,5 @@ function(req, res){
     lift_data = lift_data
   ))
 }
+
+

@@ -90,7 +90,27 @@ GeoLift_lift_data <- function(GeoLift) {
   return(df)
 }
 
+# Combining outputs for multi-cells experiments
+collect_injections <- function(ms_obj, location_ID) {
 
+
+  results <- purrr::imap(ms_obj$Models, function(glms_obj, nm) {
+    cell_id <- readr::parse_number(nm)
+    
+    inject <- GeoLift_lift_injection(glms_obj, location_ID[cell_id])
+    
+    list(
+      power = inject$power %>% dplyr::mutate(cell = cell_id),
+      lifted_data = GeoLift_lift_data(inject$lifted) %>% 
+        dplyr::mutate(cell = cell_id)
+    )
+  })
+  
+  list(
+    lifted_power = purrr::map_dfr(results, "power"),
+    lifted_data = purrr::map_dfr(results, "lifted_data")
+  )
+}
 
 GeoLift_att_data <- function(GeoLift) {
   # Taken from absolute_value.plot
