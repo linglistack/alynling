@@ -69,8 +69,18 @@ function() {
   list(status = "healthy", timestamp = Sys.time())
 }
 
-#* Autodetect time, location, and outcome columns
+#* Autodetect candidate columns for time, location, and outcome
+#* 
+#* This endpoint accepts raw CSV data and attempts to infer which columns 
+#* represent time, location, and outcome variables. It returns a dataset ID 
+#* and candidate column suggestions for the user to review and confirm.
+#*
+#* @param csv_data:string The raw CSV file contents as a single string. 
+#*        Must include at least one column that resembles time/date,
+#*        one location column, and one outcome column. 
+#*
 #* @post /api/upload_autodetect
+
 function(req, res) {
   body <- jsonlite::fromJSON(req$postBody)
 
@@ -144,7 +154,7 @@ function(req, res) {
 
 
 #* Upload and process CSV data
-#* @post /api/data/upload
+#* @post /api/upload
 function(req, res) {
   body <- jsonlite::fromJSON(req$postBody)
 
@@ -261,6 +271,7 @@ function(req, res) {
     as.character
   )$value
   X <- get_param(body, "X", NULL, as.character)$value
+
   quick_result <- get_param(body, "quick_result", TRUE, as.logical)$value
   number_of_cells <- get_param(body, "number_of_cells", 1, as.integer)$value
 
@@ -308,9 +319,9 @@ function(req, res) {
 
   pre_treatment_length <- n_time - treatment_length
   lookback_window = max(round(pre_treatment_length / 10), small_period, 7)
+
   lookback_window = ifelse(quick_result, 1, lookback_window)
 
-  
   # create the list of effect_size based on the size and direction
   effect_size <- create_effect_size_list(size_of_effect, direction_of_effect)
 
@@ -408,7 +419,7 @@ function(req, res) {
   rank_df_ID <- save_item(r_path, "rank_df", top_choices, "csv")
 
   output_obj <- list(
-    single_cell_mode = single_cell_mode,
+    single_cell = single_cell_mode,
     parameters_used = final_args,
     obj_ID = obj_ID,
     rank_df_ID = rank_df_ID,
@@ -435,13 +446,13 @@ function(req, res) {
 
   body <- jsonlite::fromJSON(req$postBody)
 
+  single_cell <- body$single_cell
   obj_ID <- body$obj_ID
 
   ms_obj <- load_item(r_path, "market_selection", obj_ID, "rds")
 
-  single_cell_indicator <- "BestMarkets" %in% names(ms_obj)
 
-  if (single_cell_indicator) {
+  if (single_cell) {
     location_ID <- get_param(body, "location_ID", 1, as.integer)$value
 
     if(length(location_ID) > 1) {
@@ -539,7 +550,8 @@ function(req, res) {
     treatment_end_time = TET,
     alpha = alpha,
     stat_test = map_direction(stat_test),
-    model = "best"
+    model = "best",
+    print = FALSE
   )
 
   optional_args <- list(

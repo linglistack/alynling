@@ -84,7 +84,7 @@ upload_server <- function(id, api_url) {
       req(rv$dataset_id)
 
       res <- POST(
-        url = paste0(api_url, "/api/data/upload"),
+        url = paste0(api_url, "/api/upload"),
         body = list(
           data_ID = rv$dataset_id,
           location_col = input$location_col,
@@ -151,7 +151,7 @@ market_selection_ui <- function(id) {
       "Exclude Markets (comma-separated): BASIC",
       ""
     ),
-    checkboxInput("quick_result", "Quick Result: BASIC", value = FALSE),
+    checkboxInput(ns("quick_result"), "Quick Result: BASIC", value = FALSE),
     textInput(ns("X2"), "Other Vars (comma-separated): ADV", ""),
     numericInput(ns("size_of_effect"), "Max Size of Effect: ADV", 0.3),
     selectInput(
@@ -176,6 +176,7 @@ market_selection_server <- function(id, api_url, dataset_id) {
   moduleServer(id, function(input, output, session) {
     # return value: will hold obj_ID once available
     obj_ID_reactive <- reactiveVal(NULL)
+    single_cell_reactive <- reactiveVal(NULL)
 
     parse_csv <- function(x) {
       if (is.null(x) || x == "") {
@@ -204,7 +205,7 @@ market_selection_server <- function(id, api_url, dataset_id) {
           min_holdout = as.numeric(input$min_holdout),
           max_holdout = as.numeric(input$max_holdout),
           budget = if (is.na(input$budget)) NULL else input$budget,
-          quick_result = input$quick$result,
+          quick_result = input$quick_result,
           fixed_effects = input$fixed_effects
         ),
         encode = "json"
@@ -222,15 +223,16 @@ market_selection_server <- function(id, api_url, dataset_id) {
 
       # store obj_ID for later use
       obj_ID_reactive(result$obj_ID)
+      single_cell_reactive(result$single_cell)
 
       # render top choices as table
       output$rankings <- renderTable({
-        as.data.frame(result$top_choices)
+        as.data.frame(result$top_choices) %>% head(5)
       })
     })
 
     # return obj_ID so the caller can chain off it
-    return(obj_ID_reactive)
+    return(list(obj_ID = obj_ID_reactive, single_cell = single_cell_reactive))
   })
 }
 
@@ -248,7 +250,7 @@ power_analysis_ui <- function(id) {
   )
 }
 
-power_analysis_server <- function(id, api_url, obj_ID) {
+power_analysis_server <- function(id, api_url, obj_ID, single_cell) {
   moduleServer(id, function(input, output, session) {
     observeEvent(input$run_power, {
       req(obj_ID())
@@ -258,6 +260,7 @@ power_analysis_server <- function(id, api_url, obj_ID) {
         url = paste0(api_url, "/api/power-analysis"),
         body = list(
           obj_ID = obj_ID(),
+          single_cell = single_cell(),
           location_ID = as.integer(loc_ids[loc_ids != ""])
         ),
         encode = "json"
@@ -278,11 +281,11 @@ power_analysis_server <- function(id, api_url, obj_ID) {
       lifted_power <- as.data.frame(result$lifted_power)
 
       output$lifted_table <- renderTable({
-        head(lifted_data, 10)
+        head(lifted_data %>% na.omit(), 5)
       })
 
       output$power_table <- renderTable({
-        head(lifted_power, 10)
+        head(lifted_power, 5)
       })
     })
   })
@@ -304,8 +307,10 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   dataset_id <- upload_server("uploader", api_url)
-  obj_ID <- market_selection_server("selector", api_url, dataset_id)
-  power_analysis_server("power", api_url, obj_ID)
+  ms_res <- market_selection_server("selector", api_url, dataset_id)
+  obj_ID <- ms_res$obj_ID
+  single_cell <- ms_res$single_cell
+  power_analysis_server("power", api_url, obj_ID, single_cell)
 }
 
 

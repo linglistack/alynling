@@ -84,7 +84,7 @@ upload_server <- function(id, api_url) {
       req(rv$dataset_id)
 
       res <- POST(
-        url = paste0(api_url, "/api/data/upload"),
+        url = paste0(api_url, "/api/upload"),
         body = list(
           data_ID = rv$dataset_id,
           location_col = input$location_col,
