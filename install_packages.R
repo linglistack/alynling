@@ -115,11 +115,42 @@ if (require("remotes", character.only = TRUE, quietly = TRUE)) {
   cat("⚠️  Neither remotes nor devtools available, skipping augsynth\n")
   augsynth_success <- FALSE
 }
+# 8-5. Install GeoLift from GitHub
+cat("\n=== Installing GeoLift from GitHub ===\n")
+
+# Ensure prerequisites: remotes and augsynth
+if (!require("remotes", character.only = TRUE, quietly = TRUE) &&
+    !require("devtools", character.only = TRUE, quietly = TRUE)) {
+  cat("⚠️  Neither remotes nor devtools available — cannot install GeoLift\n")
+  geolift_success <- FALSE
+} else if (!require("augsynth", character.only = TRUE, quietly = TRUE)) {
+  cat("⚠️  Dependency 'augsynth' not found — please install it first\n")
+  geolift_success <- FALSE
+} else {
+  # Proceed with installation
+  tryCatch({
+    if (require("remotes", character.only = TRUE, quietly = TRUE)) {
+      remotes::install_github("facebookincubator/GeoLift", dependencies = TRUE, upgrade = "never")
+    } else {
+      devtools::install_github("facebookincubator/GeoLift", dependencies = TRUE, upgrade = "never")
+    }
+    geolift_success <- require("GeoLift", character.only = TRUE, quietly = TRUE)
+    if (geolift_success) {
+      cat("✓ GeoLift installed successfully from GitHub\n")
+    } else {
+      cat("✗ GeoLift installation completed but package not loadable\n")
+    }
+  }, error = function(e) {
+    cat("✗ GeoLift installation failed:", e$message, "\n")
+    geolift_success <- FALSE
+  })
+}
+
 
 # 9. Verification
 cat("\n=== Verifying installation ===\n")
-critical_packages <- c("plumber", "jsonlite", "dplyr", "gsynth", "GeneCycle", "forecast")
-optional_packages <- c("devtools", "augsynth", "ragg")
+critical_packages <- c("plumber", "jsonlite", "dplyr", "gsynth", "GeneCycle", "forecast", "augsynth", "GeoLift")
+optional_packages <- c("devtools", "ragg")
 
 all_critical_ok <- TRUE
 optional_count <- 0
