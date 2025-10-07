@@ -550,8 +550,7 @@ function(req, res) {
     treatment_end_time = TET,
     alpha = alpha,
     stat_test = map_direction(stat_test),
-    model = "best",
-    print = FALSE
+    model = "best"
   )
 
   optional_args <- list(

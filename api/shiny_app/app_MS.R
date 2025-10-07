@@ -284,6 +284,10 @@ power_analysis_server <- function(id, api_url, obj_ID, single_cell) {
         head(lifted_data %>% na.omit(), 5)
       })
 
+      
+      # output$lifted_plot <- renderPlot({
+      # })
+
       output$power_table <- renderTable({
         head(lifted_power, 5)
       })
