@@ -43,7 +43,7 @@ const MMMDetail = ({ model }) => {
       const noise = (Math.random() - 0.5) * 100000;
       
       const actualRevenue = Math.max(0, baseRevenue + seasonality + noise);
-      const predictedRevenue = actualRevenue + (Math.random() - 0.5) * 150000;
+      const predictedRevenue = actualRevenue + (Math.random() - 0.5) * 15000000;
       
       data.push({
         date: currentDate,

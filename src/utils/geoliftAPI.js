@@ -87,29 +87,34 @@ export const geoliftAPI = {
   async marketSelection(data, options = {}) {
     const {
       treatmentPeriods = 14,
-      effectSize = [0, 0.05, 0.1, 0.15, 0.2, 0.25],
-      lookbackWindow = 1,
+      effectSize = 0.3,
+      directionOfEffect = 'pos',
+      quickResult = false,
       cpic = 1,
       alpha = 0.1,
-      budget = 100000,
+      budget = 15000000,
       numTestGeos = 2,
       holdout = [0.5, 1.0],
       includedLocations = [],
-      excludedLocations = []
+      excludedLocations = [],
+      numExperiments = 1
     } = options;
 
     const requestBody = {
       data,
       treatment_periods: treatmentPeriods,
+      direction_of_effect: directionOfEffect,
       effect_size: effectSize,
-      lookback_window: lookbackWindow,
+      quick_result: quickResult,
       cpic,
       alpha,
       budget,
       holdout,
-      N: Array.from({length: numTestGeos - 1}, (_, i) => i + 2), // Convert to range: [2, 3, ..., numTestGeos]
+      N: numTestGeos,
+      // N: Array.from({length: numTestGeos - 1}, (_, i) => i + 2), // Convert to range: [2, 3, ..., numTestGeos]
       include_markets: includedLocations,
-      exclude_markets: excludedLocations
+      exclude_markets: excludedLocations,
+      numExperiments: numExperiments
     };
     
     console.log('[geoliftAPI] Market selection request body:', {
@@ -120,14 +125,21 @@ export const geoliftAPI = {
       include_markets: includedLocations,
       exclude_markets: excludedLocations,
       budget,
+      budgetInRequestBody: requestBody.budget,
       holdout,
       N: requestBody.N,
-      numTestGeos_original: numTestGeos
+      numTestGeos_original: numTestGeos,
+      numExperiments
     });
+    
+    // Log the actual JSON string being sent
+    const jsonString = JSON.stringify(requestBody);
+    console.log('[geoliftAPI] JSON string being sent (first 500 chars):', jsonString.substring(0, 500));
+    console.log('[geoliftAPI] Budget in JSON:', JSON.parse(jsonString).budget);
     
     return apiRequest('/api/market-selection', {
       method: 'POST',
-      body: JSON.stringify(requestBody)
+      body: jsonString
     });
   },
 
@@ -137,7 +149,7 @@ export const geoliftAPI = {
   async powerAnalysis(data, locations, options = {}) {
     const {
       treatmentPeriods = 14,
-      effectSize = [0, 0.05, 0.1, 0.15, 0.2, 0.25],
+      effectSize = 0.3,
       lookbackWindow = 1,
       cpic = 1,
       alpha = 0.1
@@ -181,34 +193,24 @@ export const geoliftAPI = {
     });
   },
 
-  async edaPlots(data, options = {}) {
+  async edaPlots(objID, options = {}) {
     const {
-      treatmentPeriods = 14,
-      effectSize = [0, 0.05, 0.1, 0.15, 0.2, 0.25],
-      lookbackWindow = 1,
-      cpic = 1,
-      alpha = 0.1,
-      marketRank = 1,
+      singleCell = true,
+      locationID = 1,
     } = options;
 
     console.log('[geoliftAPI] EDA plots request:', {
-      dataRows: Array.isArray(data) ? data.length : 'unknown',
-      treatmentPeriods,
-      alpha,
-      marketRank,
-      effectSize: effectSize.length > 5 ? `${effectSize.slice(0,3)}...` : effectSize
+      objID,
+      singleCell,
+      locationID
     });
 
     return apiRequest('/api/eda/plots', {
       method: 'POST',
       body: JSON.stringify({
-        data,
-        treatment_periods: treatmentPeriods,
-        effect_size: effectSize,
-        lookback_window: lookbackWindow,
-        cpic,
-        alpha,
-        market_rank: marketRank
+        obj_ID: objID,
+        single_cell: singleCell,
+        location_ID: locationID
       })
     });
   },
@@ -256,7 +258,9 @@ export const geoliftAPI = {
       treatmentEndTime = null,
       alpha = 0.05,
       fixedEffects = true,
-      model = "best"
+      model = "best",
+      statTest = "pos",  // Direction of effect: pos, neg, both
+      X = null  // Optional covariate
     } = options;
 
     console.log('[geoliftAPI] GeoLift analysis request:', {
@@ -268,7 +272,9 @@ export const geoliftAPI = {
       treatmentEndTime,
       alpha,
       fixedEffects,
-      model
+      model,
+      statTest,
+      X
     });
 
     const requestBody = {
@@ -276,8 +282,14 @@ export const geoliftAPI = {
       locations,
       alpha,
       fixed_effects: fixedEffects,
-      model
+      model,
+      stat_test: statTest
     };
+
+    // Add optional X parameter if provided
+    if (X !== null) {
+      requestBody.X = X;
+    }
 
     // Support both date and time parameters for backward compatibility
     if (treatmentStartDate && treatmentEndDate) {
@@ -290,7 +302,7 @@ export const geoliftAPI = {
       throw new Error('Either treatment dates or treatment times must be provided');
     }
 
-    return apiRequest('/api/geolift/analysis', {
+    return apiRequest('/api/geolift', {
       method: 'POST',
       body: JSON.stringify(requestBody)
     });
@@ -306,7 +318,9 @@ export const geoliftAPI = {
       treatmentEndTime,
       alpha = 0.05,
       fixedEffects = true,
-      model = "best"
+      model = "best",
+      statTest = "pos",  // Direction of effect: pos, neg, both
+      X = null  // Optional covariate
     } = options;
 
     console.log('[geoliftAPI] GeoLift with GeoData analysis request:', {
@@ -316,20 +330,30 @@ export const geoliftAPI = {
       treatmentEndTime,
       alpha,
       fixedEffects,
-      model
+      model,
+      statTest,
+      X
     });
+
+    const requestBody = {
+      geoDataReadResponse,
+      locations,
+      treatment_start_time: treatmentStartTime,
+      treatment_end_time: treatmentEndTime,
+      alpha,
+      fixed_effects: fixedEffects,
+      model,
+      stat_test: statTest
+    };
+
+    // Add optional X parameter if provided
+    if (X !== null) {
+      requestBody.X = X;
+    }
 
     return apiRequest('/api/geolift/analysis-with-geodata', {
       method: 'POST',
-      body: JSON.stringify({
-        geoDataReadResponse,
-        locations,
-        treatment_start_time: treatmentStartTime,
-        treatment_end_time: treatmentEndTime,
-        alpha,
-        fixed_effects: fixedEffects,
-        model
-      })
+      body: JSON.stringify(requestBody)
     });
   },
 };

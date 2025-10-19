@@ -46,12 +46,22 @@ const ExpandableChartRow = ({
         const Highcharts = await loadHighcharts();
         if (destroyed) return;
 
-        const obs = analysisData.observations || [];
-        const times = [...new Set(obs.map(o => o.time))].sort((a,b)=>a-b);
+        // Handle new data structure from lifted_data and lifted_power
+        const liftedData = analysisData.lifted_data || [];
         
-        // Calculate treatment start date by subtracting experiment days from the last date
+        if (!Array.isArray(liftedData) || liftedData.length === 0) {
+          console.warn('[ExpandableChartRow] No lifted_data available');
+          return;
+        }
+        
+        // Extract time periods and observations
+        const times = liftedData.map(d => d.Time);
+        const treatmentObs = liftedData.map(d => Number(d.t_obs));
+        const controlObs = liftedData.map(d => Number(d.c_obs));
+        
+        // Calculate treatment start date by subtracting experiment days from the last time
         const lastTime = times[times.length - 1];
-        const treatmentStart = lastTime - experimentLength + 1; // +1 to include the last day
+        const treatmentStart = lastTime - experimentLength + 1;
         const treatmentEnd = lastTime;
         
         console.log('[ExpandableChartRow] Treatment calculation:', {
@@ -59,26 +69,22 @@ const ExpandableChartRow = ({
           lastTime,
           treatmentStart,
           treatmentEnd,
-          totalTimes: times.length
-        });
-        const byGroup = { Control: {}, Treatment: {} };
-        obs.forEach(o => { 
-          byGroup[o.group] = byGroup[o.group] || {}; 
-          byGroup[o.group][o.time] = o.value_smooth ?? o.value; 
+          totalTimes: times.length,
+          sampleData: liftedData[0]
         });
 
         // Render observations per timestamp chart
         const observationsSeries = [
           {
-            name: 'Control',
-            data: times.map(t => byGroup.Control && byGroup.Control[t] != null ? Number(byGroup.Control[t]) : null),
+            name: 'Control (Synthetic)',
+            data: controlObs,
             color: '#6b7280',
             lineWidth: 2,
             dashStyle: 'Dash'
           },
           {
-            name: 'Treatment', 
-            data: times.map(t => byGroup.Treatment && byGroup.Treatment[t] != null ? Number(byGroup.Treatment[t]) : null),
+            name: 'Treatment (Actual)', 
+            data: treatmentObs,
             color: '#667eea',
             lineWidth: 2,
             dashStyle: 'Solid'
@@ -112,12 +118,13 @@ const ExpandableChartRow = ({
             tooltip: {
               shared: true,
               formatter: function() {
-                const timePeriod = times[this.x];
+                const index = this.x;
+                const timePeriod = times[index];
                 const actualDate = getDateFromTime(timePeriod);
                 
                 // Get treatment and control values for this time period
-                const treatmentValue = byGroup.Treatment && byGroup.Treatment[timePeriod] != null ? Number(byGroup.Treatment[timePeriod]) : null;
-                const controlValue = byGroup.Control && byGroup.Control[timePeriod] != null ? Number(byGroup.Control[timePeriod]) : null;
+                const treatmentValue = treatmentObs[index];
+                const controlValue = controlObs[index];
                 
                 // Calculate difference (treatment - control)
                 const difference = (treatmentValue != null && controlValue != null) ? treatmentValue - controlValue : null;
@@ -130,7 +137,7 @@ const ExpandableChartRow = ({
                 }
                 
                 if (controlValue != null) {
-                  tooltipContent += `<span style="color:#6b7280">●</span> Control: <b>${controlValue.toLocaleString()}</b><br/>`;
+                  tooltipContent += `<span style="color:#6b7280">●</span> Control (Synthetic): <b>${controlValue.toLocaleString()}</b><br/>`;
                 }
                 
                 if (difference != null) {
@@ -148,23 +155,42 @@ const ExpandableChartRow = ({
         }
 
         // Render power curve chart
-        const eff = analysisData?.power_curve?.effect_size || [];
-        const pow = analysisData?.power_curve?.power || [];
+        const liftedPower = analysisData?.lifted_power || [];
+        
+        // Sort by effect size for proper curve visualization
+        const sortedPower = [...liftedPower].sort((a, b) => a.EffectSize - b.EffectSize);
+        const effectSizes = sortedPower.map(p => Number(p.EffectSize));
+        const powerValues = sortedPower.map(p => Number(p.power));
 
         if (chartPower.current) chartPower.current.destroy();
-        if (chartPowerRef.current) {
+        if (chartPowerRef.current && effectSizes.length > 0) {
           chartPower.current = Highcharts.chart(chartPowerRef.current, {
             title: { text: 'GeoLift Power Curve', style: { fontSize: '14px' } },
-            xAxis: { categories: eff.map(e => Number(e)), title: { text: 'Effect Size' } },
+            xAxis: { 
+              categories: effectSizes.map(e => e.toFixed(2)), 
+              title: { text: 'Effect Size' } 
+            },
             yAxis: { 
               title: { text: 'Power' }, 
-              max: 1, 
+              max: 1,
+              min: 0,
               labels: { formatter() { return `${Math.round(this.value*100)}%`; } } 
+            },
+            tooltip: {
+              formatter: function() {
+                const effectSize = effectSizes[this.x];
+                const power = powerValues[this.x];
+                return `<b>Effect Size: ${effectSize.toFixed(2)}</b><br/>Power: <b>${(power * 100).toFixed(1)}%</b>`;
+              }
             },
             series: [{ 
               name: 'Power', 
-              data: pow.map(p => Number(p)),
-              color: '#667eea'
+              data: powerValues,
+              color: '#667eea',
+              lineWidth: 2,
+              marker: {
+                enabled: false
+              }
             }],
             chart: { height: 300 }
           });

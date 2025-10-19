@@ -1,11 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Info } from 'lucide-react';
 import DynamicHypothesis from './DynamicHypothesis';
+import TreatmentAnalysis from './TreatmentAnalysis';
 import './ExperimentDetail.css';
 
 const ExperimentDetail = ({ experiment, onBack }) => {
   const [activeTab, setActiveTab] = useState('test-design');
   const [selectedCell, setSelectedCell] = useState('Cell 1');
+  const [showTreatmentAnalysis, setShowTreatmentAnalysis] = useState(false);
+
+  // Check if experiment has stored data for TreatmentAnalysis
+  useEffect(() => {
+    if (experiment) {
+      const hasStoredData = experiment.processedData && 
+                           experiment.geoDataReadResponse && 
+                           experiment.marketCombo;
+      setShowTreatmentAnalysis(hasStoredData);
+      console.log('[ExperimentDetail] Has stored data:', hasStoredData, experiment);
+    }
+  }, [experiment]);
 
   // Mock data based on the screenshots
   const experimentData = {
@@ -117,6 +130,39 @@ const ExperimentDetail = ({ experiment, onBack }) => {
     }
   };
 
+  // Extract available locations from geoDataReadResponse
+  const availableLocations = experiment?.geoDataReadResponse?.summary?.unique_locations || [];
+
+  // If we have stored data, show TreatmentAnalysis
+  if (showTreatmentAnalysis) {
+    return (
+      <div className="experiment-detail-page">
+        <div className="experiment-header">
+        
+          
+          <div className="breadcrumb">
+            <span className="breadcrumb-item clickable" onClick={onBack}>Experiments</span>
+            <span className="breadcrumb-separator">›</span>
+            <span className="breadcrumb-item current">{experiment.name}</span>
+            <span className="status-badge completed">{experiment.status}</span>
+          </div>
+        </div>
+
+        <div className="experiment-content">
+          <TreatmentAnalysis
+            selectedRow={experiment.marketCombo}
+            processedData={experiment.processedData}
+            geoDataReadResponse={experiment.geoDataReadResponse}
+            availableLocations={availableLocations}
+            onBack={onBack}
+            userConfig={experiment.userConfig || {}}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Otherwise, show the mock experiment detail view
   return (
     <div className="experiment-detail-page">
       <div className="experiment-header">
@@ -126,7 +172,7 @@ const ExperimentDetail = ({ experiment, onBack }) => {
         </button>
         
         <div className="breadcrumb">
-          <span className="breadcrumb-item">Experiments</span>
+          <span className="breadcrumb-item clickable" onClick={onBack}>Experiments</span>
           <span className="breadcrumb-separator">›</span>
           <span className="breadcrumb-item current">{experimentData.name}</span>
           <span className="status-badge completed">{experimentData.status}</span>

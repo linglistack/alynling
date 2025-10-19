@@ -1,13 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, ChevronLeft, ChevronRight, BarChart3, Calendar } from 'lucide-react';
 import './MainContent.css';
+import { loadExperiments, deleteExperiment } from '../utils/experimentStorage';
 
-const MainContent = ({ onCreateExperiment, onAnalyzeExperiment, onExperimentClick }) => {
+const MainContent = ({ onCreateExperiment, onAnalyzeExperiment, onExperimentClick, refreshTrigger }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [dateRange, setDateRange] = useState('01 Jan 23 - 01 Jan 24');
+  const [loadedExperiments, setLoadedExperiments] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const experiments = [
+  // Load experiments from storage
+  useEffect(() => {
+    const fetchExperiments = async () => {
+      setLoading(true);
+      try {
+        const stored = await loadExperiments();
+        setLoadedExperiments(stored);
+        console.log('[MainContent] Loaded experiments from storage:', stored.length);
+      } catch (error) {
+        console.error('[MainContent] Failed to load experiments:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchExperiments();
+  }, [refreshTrigger]); // Re-fetch when refreshTrigger changes
+
+  // Mock experiments for demo (keep existing ones)
+  const mockExperiments = [
     {
       id: 1,
       name: 'Test 1',
@@ -76,6 +98,9 @@ const MainContent = ({ onCreateExperiment, onAnalyzeExperiment, onExperimentClic
     }
   ];
 
+  // Combine loaded experiments with mock experiments
+  const experiments = [...loadedExperiments, ...mockExperiments];
+
   const columns = [
     { key: 'name', label: 'Name' },
     { key: 'outcome', label: 'Outcome/KPI' },
@@ -121,6 +146,23 @@ const MainContent = ({ onCreateExperiment, onAnalyzeExperiment, onExperimentClic
     };
 
     return <span className={`status-indicator ${getStatusClass(statusType)}`}>{status}</span>;
+  };
+
+  const handleDeleteExperiment = async (experimentId, e) => {
+    e.stopPropagation(); // Prevent row click
+    
+    if (window.confirm('Are you sure you want to delete this experiment?')) {
+      try {
+        await deleteExperiment(experimentId);
+        // Refresh experiments list
+        const stored = await loadExperiments();
+        setLoadedExperiments(stored);
+        console.log('[MainContent] Experiment deleted successfully');
+      } catch (error) {
+        console.error('[MainContent] Failed to delete experiment:', error);
+        alert('Failed to delete experiment. Please try again.');
+      }
+    }
   };
 
   // Timeline chart component
@@ -206,41 +248,65 @@ const MainContent = ({ onCreateExperiment, onAnalyzeExperiment, onExperimentClic
       <TimelineChart />
 
       <div className="table-container">
-        <table className="experiments-table">
-          <thead>
-            <tr>
-              {columns.map((column) => (
-                <th key={column.key}>
-                  {column.label}
-                  {column.key === 'lastProcessed' && (
-                    <Trash2 size={14} className="header-icon" />
-                  )}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {experiments.map((experiment) => (
-              <tr 
-                key={experiment.id} 
-                className="experiment-row"
-                onClick={() => onExperimentClick && onExperimentClick(experiment)}
-              >
-                <td>
-                  <div className="experiment-name">
-                    <span className="name-text">{experiment.name}</span>
-                    {getTypeIndicator(experiment.type)}
-                  </div>
-                </td>
-                <td>{experiment.outcome}</td>
-                <td>{experiment.lastProcessed}</td>
-                <td>{experiment.startDate}</td>
-                <td>{experiment.endDate}</td>
-                <td>{getStatusIndicator(experiment.status, experiment.statusType)}</td>
+        {loading ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
+            Loading experiments...
+          </div>
+        ) : (
+          <table className="experiments-table">
+            <thead>
+              <tr>
+                {columns.map((column) => (
+                  <th key={column.key}>
+                    {column.label}
+                    
+                  </th>
+                ))}
+                <th style={{ width: '50px' }}></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {experiments.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length + 1} style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+                    No experiments yet. Click "Create Experiment" to get started.
+                  </td>
+                </tr>
+              ) : (
+                experiments.map((experiment) => (
+                  <tr 
+                    key={experiment.id} 
+                    className="experiment-row"
+                    onClick={() => onExperimentClick && onExperimentClick(experiment)}
+                  >
+                    <td>
+                      <div className="experiment-name">
+                        <span className="name-text">{experiment.name}</span>
+                        {getTypeIndicator(experiment.type)}
+                      </div>
+                    </td>
+                    <td>{experiment.outcome}</td>
+                    <td>{experiment.lastProcessed}</td>
+                    <td>{experiment.startDate}</td>
+                    <td>{experiment.endDate}</td>
+                    <td>{getStatusIndicator(experiment.status, experiment.statusType)}</td>
+                    <td>
+                      {/* Only show delete for loaded experiments (not mock ones) */}
+                      {loadedExperiments.some(exp => exp.id === experiment.id) && (
+                        <Trash2 
+                          size={16} 
+                          className="delete-icon" 
+                          onClick={(e) => handleDeleteExperiment(experiment.id, e)}
+                          style={{ cursor: 'pointer', color: '#9ca3af' }}
+                        />
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
 
       <div className="pagination">

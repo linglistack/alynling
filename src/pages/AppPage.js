@@ -41,6 +41,7 @@ const AppPage = () => {
   const [selectedIntegration, setSelectedIntegration] = useState(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [experimentRefreshTrigger, setExperimentRefreshTrigger] = useState(0);
 
   // Redirect to landing page if not authenticated (but skip this in waitlist mode for /alynling access)
   useEffect(() => {
@@ -81,6 +82,12 @@ const AppPage = () => {
     setShowExperimentSetup(false);
     setShowDataIngestion(false);
     setShowModelCreation(false);
+  };
+
+  const handleExperimentCreated = (experiment) => {
+    console.log('[AppPage] Experiment created, refreshing list:', experiment);
+    // Trigger refresh of experiments list
+    setExperimentRefreshTrigger(prev => prev + 1);
   };
 
   const handleBackToMMM = () => {
@@ -268,7 +275,10 @@ const AppPage = () => {
       
       <div className={`main-container ${isFullScreen ? 'expand' : ''} ${isChatOpen ? 'chat-open' : ''}`}>
         {showExperimentSetup ? (
-          <ExperimentSetup onBack={handleBackToMain} />
+          <ExperimentSetup 
+            onBack={handleBackToMain} 
+            onExperimentCreated={handleExperimentCreated}
+          />
         ) : showDataIngestion ? (
           <DataIngestionForm onBack={handleBackToMain} />
         ) : showModelCreation ? (
@@ -294,6 +304,7 @@ const AppPage = () => {
             onCreateExperiment={handleCreateExperiment}
             onAnalyzeExperiment={handleAnalyzeExperiment}
             onExperimentClick={handleExperimentClick}
+            refreshTrigger={experimentRefreshTrigger}
           />
         )}
       </div>

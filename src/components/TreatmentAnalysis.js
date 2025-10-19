@@ -3,6 +3,7 @@ import './TreatmentAnalysis.style.css';
 import LocationSelectionModal from './LocationSelectionModal';
 import VariationSelector from './VariationSelector';
 import { geoliftAPI } from '../utils/geoliftAPI';
+import SingleVariationDisplay from './SingleVariationDisplay';
 
 const loadHighcharts = () => new Promise((resolve, reject) => {
   if (window.Highcharts) return resolve(window.Highcharts);
@@ -25,6 +26,8 @@ const TreatmentAnalysis = ({
   const [treatmentStartDate, setTreatmentStartDate] = useState('');
   const [treatmentEndDate, setTreatmentEndDate] = useState('');
   const [alpha, setAlpha] = useState(0.05);
+  const [directionOfEffect, setDirectionOfEffect] = useState('pos');
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Available date range from data
   const [dateRange, setDateRange] = useState({ min: '', max: '' });
@@ -68,27 +71,92 @@ const TreatmentAnalysis = ({
     }
   }, [selectedRow]);
 
-  // Initialize date range from geoDataReadResponse
+  // FIRST PRIORITY: Initialize from stored experiment parameters (if available)
   useEffect(() => {
-    console.log('[TreatmentAnalysis] Date initialization - geoDataReadResponse:', !!geoDataReadResponse);
-    console.log('[TreatmentAnalysis] Date initialization - summary:', geoDataReadResponse?.summary);
-    console.log('[TreatmentAnalysis] Date initialization - time_mapping length:', geoDataReadResponse?.time_mapping?.length);
+    if (isInitialized) return; // Already initialized
+    
+    console.log('[TreatmentAnalysis] Checking for stored experiment data:', {
+      hasSelectedRow: !!selectedRow,
+      hasTimeMapping: !!geoDataReadResponse?.time_mapping,
+      hasTreatmentTimes: selectedRow?.treatment_start_time !== undefined && selectedRow?.treatment_end_time !== undefined
+    });
+    
+    // Check if we have stored experiment data
+    const hasStoredData = selectedRow && (
+      selectedRow.treatment_start_time !== undefined || 
+      selectedRow.direction_of_effect || 
+      selectedRow.alpha !== undefined ||
+      userConfig.alpha !== undefined ||
+      userConfig.directionOfEffect
+    );
+    
+    if (hasStoredData && geoDataReadResponse?.time_mapping) {
+      console.log('[TreatmentAnalysis] Initializing from stored experiment data:', selectedRow);
+      
+      // Initialize alpha from userConfig or selectedRow
+      if (userConfig.alpha !== undefined) {
+        setAlpha(userConfig.alpha);
+        console.log('[TreatmentAnalysis] Initialized alpha from userConfig:', userConfig.alpha);
+      } else if (selectedRow.alpha !== undefined) {
+        setAlpha(selectedRow.alpha);
+        console.log('[TreatmentAnalysis] Initialized alpha from selectedRow:', selectedRow.alpha);
+      }
+      
+      // Initialize direction of effect from selectedRow or userConfig
+      if (selectedRow.direction_of_effect) {
+        setDirectionOfEffect(selectedRow.direction_of_effect);
+        console.log('[TreatmentAnalysis] Initialized direction from selectedRow:', selectedRow.direction_of_effect);
+      } else if (userConfig.directionOfEffect) {
+        setDirectionOfEffect(userConfig.directionOfEffect);
+        console.log('[TreatmentAnalysis] Initialized direction from userConfig:', userConfig.directionOfEffect);
+      }
+      
+      // Initialize treatment dates from selectedRow if available
+      if (selectedRow.treatment_start_time !== undefined && selectedRow.treatment_end_time !== undefined) {
+        // Convert time periods to dates using time_mapping
+        const timeMapping = geoDataReadResponse.time_mapping;
+        const startEntry = timeMapping.find(entry => entry.time === selectedRow.treatment_start_time);
+        const endEntry = timeMapping.find(entry => entry.time === selectedRow.treatment_end_time);
+        
+        if (startEntry && endEntry) {
+          setTreatmentStartDate(startEntry.date);
+          setTreatmentEndDate(endEntry.date);
+          console.log('[TreatmentAnalysis] Initialized dates from stored times:', {
+            treatment_start_time: selectedRow.treatment_start_time,
+            treatment_end_time: selectedRow.treatment_end_time,
+            startDate: startEntry.date,
+            endDate: endEntry.date
+          });
+        }
+      }
+      
+      setIsInitialized(true);
+      console.log('[TreatmentAnalysis] Initialization from stored data complete');
+    }
+  }, [selectedRow, geoDataReadResponse, userConfig, isInitialized]);
+
+  // SECOND PRIORITY: Set date range and fallback to defaults if no stored data
+  useEffect(() => {
+    console.log('[TreatmentAnalysis] Date range initialization - geoDataReadResponse:', !!geoDataReadResponse);
     
     if (geoDataReadResponse?.summary?.date_range) {
       const { min_date, max_date } = geoDataReadResponse.summary.date_range;
       console.log('[TreatmentAnalysis] Setting date range from GeoDataRead:', { min_date, max_date });
       setDateRange({ min: min_date, max: max_date });
       
-      // Set default treatment period to last 12 periods
-      if (!treatmentStartDate && !treatmentEndDate && geoDataReadResponse.time_mapping) {
-        const sortedMapping = geoDataReadResponse.time_mapping.sort((a, b) => new Date(a.date) - new Date(b.date));
-        const defaultStart = sortedMapping[sortedMapping.length - 12]?.date || sortedMapping[0]?.date;
+      // Only set default dates if:
+      // 1. Not already initialized from stored data, AND
+      // 2. No dates are currently set
+      if (!isInitialized && !treatmentStartDate && !treatmentEndDate && geoDataReadResponse.time_mapping) {
+        const sortedMapping = [...geoDataReadResponse.time_mapping].sort((a, b) => new Date(a.date) - new Date(b.date));
+        const defaultStart = sortedMapping[Math.max(0, sortedMapping.length - 12)]?.date || sortedMapping[0]?.date;
         const defaultEnd = sortedMapping[sortedMapping.length - 1]?.date;
         
-        console.log('[TreatmentAnalysis] Setting default dates from GeoDataRead:', { defaultStart, defaultEnd });
+        console.log('[TreatmentAnalysis] Setting default dates (no stored data):', { defaultStart, defaultEnd });
         if (defaultStart && defaultEnd) {
           setTreatmentStartDate(defaultStart);
           setTreatmentEndDate(defaultEnd);
+          setIsInitialized(true);
         }
       }
     } else if (processedData && Array.isArray(processedData) && processedData.length > 0) {
@@ -99,17 +167,19 @@ const TreatmentAnalysis = ({
       
       setDateRange({ min: minDate, max: maxDate });
       
-      // Set default treatment period to last 12 periods
-      if (!treatmentStartDate && !treatmentEndDate) {
+      // Only set defaults if not already initialized from stored data
+      if (!isInitialized && !treatmentStartDate && !treatmentEndDate) {
         const totalDates = [...new Set(dates)].sort();
-        const defaultStart = totalDates[totalDates.length - 12] || totalDates[0];
+        const defaultStart = totalDates[Math.max(0, totalDates.length - 12)] || totalDates[0];
         const defaultEnd = totalDates[totalDates.length - 1];
         
+        console.log('[TreatmentAnalysis] Setting default dates from processedData:', { defaultStart, defaultEnd });
         setTreatmentStartDate(defaultStart);
         setTreatmentEndDate(defaultEnd);
+        setIsInitialized(true);
       }
     }
-  }, [geoDataReadResponse, processedData, treatmentStartDate, treatmentEndDate]);
+  }, [geoDataReadResponse, processedData, treatmentStartDate, treatmentEndDate, isInitialized]);
 
   // Function to normalize state names to proper case for map matching
   const normalizeStateName = (name) => {
@@ -240,6 +310,7 @@ const TreatmentAnalysis = ({
 
         // Call the GeoLift API for final analysis using GeoDataRead response data and converted time periods
         console.log('[TreatmentAnalysis] User config being sent to API:', userConfig);
+        
         const apiParams = {
           locations: selectedLocations.included,
           treatmentStartTime,
@@ -247,6 +318,7 @@ const TreatmentAnalysis = ({
           alpha,
           fixedEffects: true,
           model: "best",
+          statTest: directionOfEffect,  // Direction of effect: pos, neg, both
           // Pass user configuration for dynamic calculations
           test_budget: userConfig.testBudget || 15000,
           treatment_periods: userConfig.treatmentPeriods || 28,
@@ -268,6 +340,7 @@ const TreatmentAnalysis = ({
           treatmentStartDate,
           treatmentEndDate,
           alpha,
+          statTest: directionOfEffect,
           processedDataRows: Array.isArray(processedData) ? processedData.length : 'unknown'
         });
 
@@ -278,7 +351,8 @@ const TreatmentAnalysis = ({
           treatmentEndDate,
           alpha,
           fixedEffects: true,
-          model: "best"
+          model: "best",
+          statTest: directionOfEffect
         });
         
         console.log('[TreatmentAnalysis] GeoLift analysis result:', result);
@@ -539,6 +613,20 @@ const TreatmentAnalysis = ({
                 </div>
 
                 <div className="config-field">
+                  <label className="config-label">Direction of Effect</label>
+                  <select
+                    className="config-input"
+                    value={directionOfEffect}
+                    onChange={(e) => setDirectionOfEffect(e.target.value)}
+                  >
+                    <option value="pos">Positive</option>
+                    <option value="neg">Negative</option>
+                    <option value="both">Both</option>
+                  </select>
+                 
+                </div>
+
+                <div className="config-field">
                   <label className="config-label">Treatment Locations</label>
                   <div className="location-selection-input" onClick={() => setLocationModalOpen(true)}>
                     <span className="location-summary">
@@ -577,7 +665,7 @@ const TreatmentAnalysis = ({
               ) : analysisResult ? (
                 <div className="analysis-results-content">
                   {/* Quick Summary */}
-                  {analysisResult.summary && (
+                  {/* {analysisResult.summary && (
                     <div className="analysis-summary">
                       <div className="summary-item">
                         <span className="summary-label">Overall Effect:</span>
@@ -589,19 +677,15 @@ const TreatmentAnalysis = ({
                         </span>
                       </div>
                     </div>
-                  )}
+                  )} */}
 
-                  {/* Variation Selector */}
-                  {analysisResult.variations && (
-                    <VariationSelector
-                      variations={analysisResult.variations}
-                      selectedVariation={selectedVariation}
-                      onVariationSelect={setSelectedVariation}
-                      treatmentStartDate={treatmentStartDate}
-                      treatmentEndDate={treatmentEndDate}
-                      geoDataReadResponse={geoDataReadResponse}
-                    />
-                  )}
+                  {/* Single Analysis Display (no variations, matching shiny app) */}
+                  <SingleVariationDisplay
+                    analysisData={analysisResult}
+                    treatmentStartDate={treatmentStartDate}
+                    treatmentEndDate={treatmentEndDate}
+                    geoDataReadResponse={geoDataReadResponse}
+                  />
 
 
                 </div>

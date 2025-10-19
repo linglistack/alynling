@@ -36,6 +36,7 @@ const ConfigureExperiment = ({
   isPreCallingMarketSelection,
   marketSelectionProgress,
   onGoToAnalysis,
+  onCreateExperiment,
   currentStep: parentCurrentStep = 2,
   selectedMarketRow,
   onSelectedMarketRowChange,
@@ -48,9 +49,12 @@ const ConfigureExperiment = ({
   rowAnalysisErrors,
   onRowAnalysisErrorsChange,
   experimentCells,
-  onExperimentCellsChange
+  onExperimentCellsChange,
+  experimentName,
+  onExperimentNameChange
 }) => {
-  const [experimentName, setExperimentName] = useState('');
+  const localExperimentName = experimentName || '';
+  const setExperimentName = onExperimentNameChange || (() => {});
   const [numExperiments, setNumExperiments] = useState(1);
   
   // Use persistent cells state from parent, initialize if not provided
@@ -79,6 +83,10 @@ const ConfigureExperiment = ({
   // Use parent's selectedMarketRow state instead of local selectedRows
   const selectedRows = selectedMarketRow ? [selectedMarketRow] : [];
   const [manualProgress, setManualProgress] = useState(0);
+  
+  // Store market selection object ID and mode for EDA plots
+  const [marketSelectionObjID, setMarketSelectionObjID] = useState(null);
+  const [isSingleCellMode, setIsSingleCellMode] = useState(true);
 
 
 
@@ -124,6 +132,13 @@ const ConfigureExperiment = ({
       setMarketCombos(cachedResults.marketCombos);
       setMsError(cachedResults.msError || '');
       setMsLoading(false);
+      
+      // Restore obj_ID and single_cell mode from cache
+      if (cachedResults.objID) {
+        setMarketSelectionObjID(cachedResults.objID);
+        setIsSingleCellMode(cachedResults.singleCell ?? true);
+        console.log('[ConfigureExperiment] Restored from cache - obj_ID:', cachedResults.objID, 'single_cell:', cachedResults.singleCell);
+      }
     }
   }, [cachedResults]);
 
@@ -235,19 +250,19 @@ const ConfigureExperiment = ({
     return () => clearTimeout(timer);
   }, [marketCombos]); // Re-run when market combinations change
 
-  useEffect(() => {
-    setCells((prev) => {
-      const next = [...prev];
-      if (numExperiments > prev.length) {
-        for (let i = prev.length; i < numExperiments; i += 1) {
-          next.push(makeEmptyCell(i));
-        }
-      } else if (numExperiments < prev.length) {
-        next.length = numExperiments;
-      }
-      return next.map((c, i) => ({ ...c, id: i + 1 }));
-    });
-  }, [numExperiments]);
+  // useEffect(() => {
+  //   setCells((prev) => {
+  //     const next = [...prev];
+  //     if (numExperiments > prev.length) {
+  //       for (let i = prev.length; i < numExperiments; i += 1) {
+  //         next.push(makeEmptyCell(i));
+  //       }
+  //     } else if (numExperiments < prev.length) {
+  //       next.length = numExperiments;
+  //     }
+  //     return next.map((c, i) => ({ ...c, id: i + 1 }));
+  //   });
+  // }, [numExperiments]);
 
   const updateCell = (index, field, value) => {
     setCells((prev) => prev.map((c, i) => (i === index ? { ...c, [field]: value } : c)));
@@ -305,10 +320,14 @@ const ConfigureExperiment = ({
     return Number.isFinite(n) && n > 0 ? n : 1;
   }, [cells]);
 
-  const lookbackWindow = useMemo(() => {
+  const directionOfEffect = useMemo(() => {
     const firstCell = cells[0];
-    const n = Number(firstCell?.advanced?.lookbackWindow);
-    return Number.isFinite(n) && n > 0 ? n : 1;
+    return firstCell?.advanced?.directionOfEffect || 'pos';
+  }, [cells]);
+
+  const quickResult = useMemo(() => {
+    const firstCell = cells[0];
+    return firstCell?.advanced?.quickResult === true || firstCell?.advanced?.quickResult === 'false';
   }, [cells]);
 
   const alpha = useMemo(() => {
@@ -320,7 +339,7 @@ const ConfigureExperiment = ({
   const budget = useMemo(() => {
     const firstCell = cells[0];
     const n = Number(firstCell?.advanced?.testAmount);
-    const result = Number.isFinite(n) && n > 0 ? n : 15000;  // Match CellAdvancedConfig default
+    const result = Number.isFinite(n) && n > 0 ? n : 15000000;  // Match CellAdvancedConfig default
     console.log('[ConfigureExperiment] Budget calculation:', {
       firstCell: firstCell,
       testAmount: firstCell?.advanced?.testAmount,
@@ -338,9 +357,8 @@ const ConfigureExperiment = ({
 
   const effectSize = useMemo(() => {
     const firstCell = cells[0];
-    const csvString = firstCell?.advanced?.effectSizeCsv || '0,0.05,0.1,0.15,0.2,0.25';
-    const parts = csvString.split(',').map(s => Number(String(s).trim())).filter(n => Number.isFinite(n));
-    return parts.length > 0 ? parts : [0, 0.05, 0.1, 0.15, 0.2, 0.25];
+    const csvString = firstCell?.advanced?.effectSizeCsv || 0.3;
+    return csvString ?? 0.3;
   }, [cells]);
 
   const holdout = useMemo(() => {
@@ -401,10 +419,13 @@ const ConfigureExperiment = ({
       console.log('[MarketSelection][request]', {
         treatmentPeriods,
         effectSize,
-        lookbackWindow,
+        directionOfEffect,
+        quickResult,
         cpic,
         alpha,
         budget,
+        budgetType: typeof budget,
+        budgetFromCell: cells[0]?.advanced?.testAmount,
         numTestGeos,
         holdout,
         dataRows: Array.isArray(dataToUse) ? dataToUse.length : undefined,
@@ -419,19 +440,31 @@ const ConfigureExperiment = ({
       const resp = await geoliftAPI.marketSelection(dataToUse, {
         treatmentPeriods,
         effectSize,
-        lookbackWindow,
+        directionOfEffect,
+        quickResult,
         cpic,
         alpha,
         budget,
         numTestGeos,
         holdout,
         includedLocations: currentCellLocations.included,
-        excludedLocations: currentCellLocations.excluded
+        excludedLocations: currentCellLocations.excluded,
+        numExperiments
       });
       console.log('[MarketSelection][response]', resp);
       if (!resp.success) throw new Error('Market selection failed');
-      const combos = resp.market_selection || [];
+      
+      // Handle new API structure: output_obj.top_choices
+      const combos = resp.output_obj?.top_choices || resp.market_selection || [];
+      console.log('[MarketSelection] Top choices:', combos.length, 'combinations');
       setMarketCombos(combos);
+      
+      // Store obj_ID and single_cell mode for EDA plots
+      if (resp.output_obj?.obj_ID) {
+        setMarketSelectionObjID(resp.output_obj.obj_ID);
+        setIsSingleCellMode(resp.output_obj.single_cell ?? true);
+        console.log('[MarketSelection] Stored obj_ID:', resp.output_obj.obj_ID, 'single_cell:', resp.output_obj.single_cell);
+      }
       
       // Complete progress for manual runs
       if (!isPreCallingMarketSelection) {
@@ -447,12 +480,15 @@ const ConfigureExperiment = ({
         onCacheResults({
           marketCombos: combos,
           msError: '',
+          objID: resp.output_obj?.obj_ID || null,
+          singleCell: resp.output_obj?.single_cell ?? true,
           timestamp: Date.now(),
           // Store dependency values to detect changes
           dependencies: {
             treatmentPeriods,
             effectSize,
-            lookbackWindow,
+            directionOfEffect,
+            quickResult,
             cpic,
             alpha,
             holdout,
@@ -471,11 +507,14 @@ const ConfigureExperiment = ({
         onCacheResults({
           marketCombos: [],
           msError: errorMsg,
+          objID: null,
+          singleCell: true,
           timestamp: Date.now(),
           dependencies: {
             treatmentPeriods,
             effectSize,
-            lookbackWindow,
+            directionOfEffect,
+            quickResult,
             cpic,
             alpha,
             holdout,
@@ -503,12 +542,11 @@ const ConfigureExperiment = ({
   };
 
   const runAnalysisForRow = async (row) => {
-    // Use GeoDataRead converted data if available, otherwise fall back to raw data
-    const dataToUse = (geoDataReadResponse && geoDataReadResponse.data && geoDataReadResponse.data.length > 0) 
-      ? geoDataReadResponse.data 
-      : processedData;
-    
-    if (!dataToUse) return;
+    // Check if we have the required obj_ID
+    if (!marketSelectionObjID) {
+      console.warn('[ConfigureExperiment][RowAnalysis] No market selection obj_ID available');
+      return;
+    }
     
     const rowKey = row.key;
     
@@ -518,49 +556,34 @@ const ConfigureExperiment = ({
       
       console.log('[ConfigureExperiment][RowAnalysis] Analyzing row:', row);
       
-      // Extract locations from the row
-      const locations = row.locations || 
-                       row.test_markets || 
-                       row.markets || 
-                       row.location || 
-                       [];
-      
-      // Ensure locations is an array
-      const locationsArray = Array.isArray(locations) ? locations : [locations].filter(Boolean);
-      
-      if (locationsArray.length === 0) {
-        throw new Error('Selected market combination has no valid locations');
-      }
-      
-      // Safety check for treatmentPeriods value
-      if (!Number.isFinite(treatmentPeriods) || treatmentPeriods > 10000) {
-        throw new Error(`Invalid treatment periods value: ${treatmentPeriods}. Please check your experiment configuration.`);
-      }
+      // Use the row's ID as the location_ID (which is the rank/index in the market selection results)
+      const locationID = row.ID || row.id || 1;
       
       console.log('[ConfigureExperiment][RowAnalysis][request]', {
         row: row,
-        locations: locationsArray,
-        alpha: alpha,
-        treatmentPeriods,
-        marketRank: row.ID || row.id || row.rank || 1,
-        dataRows: Array.isArray(dataToUse) ? dataToUse.length : undefined
+        objID: marketSelectionObjID,
+        singleCell: isSingleCellMode,
+        locationID: locationID
       });
       
-      // Call the EDA plots API for this specific row
-      const data = await geoliftAPI.edaPlots(
-        dataToUse,
+      // Call the EDA plots API with the new parameters
+      const response = await geoliftAPI.edaPlots(
+        marketSelectionObjID,
         {
-          treatmentPeriods: treatmentPeriods,
-          alpha: alpha,
-          marketRank: row.ID || row.id || row.rank || 1,
-          effectSize: effectSize,
-          lookbackWindow: lookbackWindow,
-          cpic: cpic
+          singleCell: isSingleCellMode,
+          locationID: locationID
         }
       );
       
-      console.log('[ConfigureExperiment][RowAnalysis][response]', data);
-      setRowAnalysisDataState(prev => ({ ...prev, [rowKey]: data }));
+      console.log('[ConfigureExperiment][RowAnalysis][response]', response);
+      
+      // Check if response is successful
+      if (!response.success) {
+        throw new Error(response.error_msg || 'EDA plots request failed');
+      }
+      
+      // Store the output_obj which contains lifted_data and lifted_power
+      setRowAnalysisDataState(prev => ({ ...prev, [rowKey]: response.output_obj }));
     } catch (e) {
       console.error('[ConfigureExperiment][RowAnalysis][error]', e);
       const errorMsg = e.message || 'Analysis failed';
@@ -654,7 +677,7 @@ const ConfigureExperiment = ({
                   type="text"
                   className="config-input"
                   placeholder="Enter experiment name"
-                  value={experimentName}
+                  value={localExperimentName}
                   onChange={(e) => setExperimentName(e.target.value)}
                 />
               </div>
@@ -680,7 +703,7 @@ const ConfigureExperiment = ({
             <div className="cell-card" key={cell.id}>
               <div className="cell-title">Cell {cell.id} Configuration</div>
               <div className="cell-grid single-col">
-                <div className="cell-field">
+                {/* <div className="cell-field">
                   <label className="config-label">Channel Name</label>
                   <input
                     type="text"
@@ -689,7 +712,7 @@ const ConfigureExperiment = ({
                     value={cell.channelName}
                     onChange={(e) => updateCell(idx, 'channelName', e.target.value)}
                   />
-                </div>
+                </div> */}
                 
                 <div className="cell-field">
                   <label className="config-label">Location Selection</label>
@@ -748,86 +771,46 @@ const ConfigureExperiment = ({
               </div>
             ) : msError ? (
               <div className="results-error">{msError}</div>
-            ) : marketCombos && marketCombos.length > 0 ? (
+            ) : (marketCombos && Array.isArray(marketCombos) && marketCombos.length > 0) ? (
               (() => {
                 const first = marketCombos[0] || {};
                 const allKeys = Object.keys(first);
 
-                // Define which columns to show (prioritize rank over id)
+                // Define which columns to show in priority order (new API structure)
                 const allowedColumns = [
-                  'rank', 'ranking', 'location', 'locations', 'markets', 'test_markets',
-                  'effect_size', 'effectsize', 'effect',
-                  'average_att', 'att', 'avg_att', 'average_effect',
-                  'investment', 'budget', 'cost',
-                  'correlation', 'corr', 'cor',
-                  'holdout', 'Holdout', 'holdout_size',
-                  'duration', 'Duration', 'duration_days'
+                  'statistically_rigorous', 'balance_rigor_and_budget', 'budget_friendly',
+                  'cell', 'location',
+                  'Investment', 'duration', 'Power', 'correlation', 'synthetic_control_fit'
                 ];
 
-                // Create a mapping of API keys to their categories, then filter in priority order
-                const keyMapping = {};
-                allKeys.forEach(key => {
-                  const lowerKey = key.toLowerCase();
-                  for (const allowed of allowedColumns) {
-                    const lowerAllowed = allowed.toLowerCase();
-                    if (lowerKey.includes(lowerAllowed) || lowerAllowed.includes(lowerKey)) {
-                      if (!keyMapping[allowed]) {
-                        keyMapping[allowed] = key; // First match wins
-                      }
-                      break; // Stop at first match to avoid duplicates
-                    }
-                  }
-                });
+                // Filter to only show columns that exist in the data (exact match)
+                const filteredKeys = allowedColumns.filter(col => allKeys.includes(col));
 
-                // Get filtered keys in priority order
-                const filteredKeys = allowedColumns
-                  .filter(allowed => keyMapping[allowed])
-                  .map(allowed => keyMapping[allowed]);
-
-                // Prepare data with unique keys first (needed for width calculation)
+                // Prepare data with unique keys first (combine cell and ID for uniqueness across experiments)
                 const dataSource = marketCombos.map((row, index) => ({
                   ...row,
-                  key: index
+                  key: row.cell !== undefined && row.ID !== undefined 
+                    ? `${row.cell}_${row.ID}` 
+                    : (row.ID !== undefined ? row.ID : index)
                 }));
 
                 const getColumnTitle = (k) => {
-                  // Custom labels for specific columns
+                  // Custom labels for new API columns
                   const labelMap = {
-                    'rank': 'Rank',
-                    'ranking': 'Rank',
+                    'ID': 'ID',
+                    'cell': 'Cell',
                     'location': 'Location',
-                    'locations': 'Location', 
-                    'markets': 'Location',
-                    'test_markets': 'Location',
-                    'effect_size': 'Effect Size',
-                    'effectsize': 'Effect Size',
-                    'effect': 'Effect Size',
-                    'average_att': 'Average ATT',
-                    'att': 'Average ATT',
-                    'avg_att': 'Average ATT',
-                    'average_effect': 'Average ATT',
-                    'investment': 'Investment',
-                    'budget': 'Investment',
-                    'cost': 'Investment',
+                    'statistically_rigorous': 'Statistical Rank',
+                    'balance_rigor_and_budget': 'Balanced Rank',
+                    'budget_friendly': 'Budget Rank',
+                    'Investment': 'Investment',
+                    'duration': 'Duration (days)',
+                    'Power': 'Power',
                     'correlation': 'Correlation',
-                    'corr': 'Correlation',
-                    'cor': 'Correlation',
-                    'holdout': 'Holdout',
-                    'Holdout': 'Holdout',
-                    'holdout_size': 'Holdout',
-                    'duration': 'Duration',
-                    'Duration': 'Duration',
-                    'duration_days': 'Duration'
+                    'synthetic_control_fit': 'SC Fit'
                   };
                   
-                  const lowerKey = k.toLowerCase();
-                  for (const [pattern, label] of Object.entries(labelMap)) {
-                    if (lowerKey.includes(pattern) || pattern.includes(lowerKey)) {
-                      return label;
-                    }
-                  }
-                  
-                  return k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                  return labelMap[k] || k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
                 };
 
                 const formatValue = (v, key) => {
@@ -835,8 +818,21 @@ const ConfigureExperiment = ({
                   if (v == null) return '';
                   if (typeof v === 'object') return JSON.stringify(v);
                   if (typeof v === 'number') {
-                    if (/revenue|budget|amount|lift|value|investment|cost/i.test(key)) {
-                      return v.toLocaleString();
+                    // Format Investment as currency
+                    if (key === 'Investment') {
+                      return '$' + v.toLocaleString();
+                    }
+                    // Format Power and correlation as percentages
+                    if (key === 'Power' || key === 'correlation') {
+                      return (v * 100).toFixed(1) + '%';
+                    }
+                    // Format synthetic_control_fit as decimal
+                    if (key === 'synthetic_control_fit') {
+                      return v.toFixed(3);
+                    }
+                    // Rankings and other numbers as-is
+                    if (/rank|rigor|budget_friendly/i.test(key)) {
+                      return v;
                     }
                     if (/effect|att/i.test(key)) {
                       return v.toFixed(3);
@@ -916,7 +912,11 @@ const ConfigureExperiment = ({
                 // Create Ant Design table columns
                 const columns = filteredKeys.map((key, index) => {
                   const title = getColumnTitle(key);
-                  const isNumeric = /number|rank|effect|att|investment|budget|cost|correlation|corr|cor|holdout|Holdout|holdout_size|duration|Duration|duration_days/i.test(key);
+                  // Define which columns are numeric for sorting
+                  const numericColumns = ['ID', 'cell', 'statistically_rigorous', 'balance_rigor_and_budget', 
+                                         'budget_friendly', 'Investment', 'duration', 'Power', 
+                                         'correlation', 'synthetic_control_fit'];
+                  const isNumeric = numericColumns.includes(key);
 
                   const defaultWidth = calculateColumnWidth(key, title, dataSource);
                   const width = columnWidths[key] || defaultWidth;
@@ -1037,7 +1037,7 @@ const ConfigureExperiment = ({
                         }}
                         expandable={{
                           expandedRowRender,
-                          expandedRowKeys: Object.keys(expandedRowsState).filter(key => expandedRowsState[key]).map(Number),
+                          expandedRowKeys: Object.keys(expandedRowsState).filter(key => expandedRowsState[key]),
                           onExpand: (expanded, record) => {
                             console.log('[ConfigureExperiment] Row expand/collapse:', { expanded, record });
                             handleRowExpand(record);
@@ -1070,18 +1070,19 @@ const ConfigureExperiment = ({
           </div>
         </div>
         
-        {/* Next Button for Step 3 - positioned below the table */}
+        {/* Action Buttons - positioned below the table */}
         {marketCombos && marketCombos.length > 0 && (
           <div className="table-actions">
             <button
               type="button"
-              className={`primary-btn ${selectedRows.length === 0 ? 'secondary' : ''}`}
+              className={`primary-btn ${selectedRows.length === 0 ? 'disabled' : ''}`}
               disabled={selectedRows.length === 0}
-              onClick={navigateToStep3}
-              title={selectedRows.length === 0 ? 'Select a market combination from the table to proceed' : `Proceed to step 3 for ${selectedRows.length > 0 ? selectedRows[0].locations || selectedRows[0].test_markets || selectedRows[0].markets || 'selected combination' : ''}`}
+              onClick={onCreateExperiment}
+              title={'Create Experiment'}
             >
-              {selectedRows.length > 0 ? `Next: Analysis` : 'Next (Select a Market)'}
+              Create Experiment
             </button>
+            
           </div>
         )}
       </div>

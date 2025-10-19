@@ -415,9 +415,15 @@ combine_results <- function(results) {
 
 # Market Selection --------------------------------------------------------
 create_effect_size_list <- function(size, direction, steps = 10) {
+  # Ensure size is a scalar value
+  if (length(size) > 1) {
+    warning("size has multiple values, using the first value")
+    size <- size[1]
+  }
+  
   size = abs(size)
 
-  if(size > 1 | size == 0) {
+  if(size > 1 || size == 0) {
     size <- 1
   }
 

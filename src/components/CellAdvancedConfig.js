@@ -9,15 +9,16 @@ const defaultAdvanced = {
   channelROI: '3',
   experimentLength: '28',
   cooldownPeriod: '7',
-  testAmount: '15000',
+  testAmount: '15000000',
   marketsRequired: '',
   excludeFromTest: '',
   excludeCompletely: '',
   numTestGeos: 2,
   // Market Selection Parameters
   treatmentPeriods: '28',
-  effectSizeCsv: '0,0.05,0.1,0.15,0.2,0.25',
-  lookbackWindow: '1',
+  effectSizeCsv: '0.3',
+  directionOfEffect: 'pos',
+  quickResult: false,
   cpic: '1',
   alpha: '0.1',
   holdoutMin: 50,
@@ -100,7 +101,7 @@ const CellAdvancedConfig = ({ value, onChange }) => {
       </button>
       {open && (
         <div className="advanced-panel">
-          <div className="adv-field">
+          {/* <div className="adv-field">
             <label className="config-label">Which of the following best describes the type of test you want to run?</label>
             <div className="radio-row">
               <label className="radio-inline">
@@ -112,31 +113,30 @@ const CellAdvancedConfig = ({ value, onChange }) => {
                 <span>Increase spend on an existing channel or add a new channel</span>
               </label>
             </div>
-          </div>
+          </div> */}
 
-          <div className="adv-field">
-            <label className="config-label">Outcome variable type</label>
-            <div className="radio-row">
-              <label className="radio-inline">
-                <input type="radio" name="outcomeType" checked={v.outcomeType === 'conversions'} onChange={() => update('outcomeType', 'conversions')} />
-                <span>conversions</span>
-              </label>
-              <label className="radio-inline">
-                <input type="radio" name="outcomeType" checked={v.outcomeType === 'revenue'} onChange={() => update('outcomeType', 'revenue')} />
-                <span>revenue</span>
-              </label>
-            </div>
-          </div>
+         
 
           <div className="adv-grid">
-            <div className="adv-field">
-              <label className="config-label">Approximate channel ROI</label>
-              <input type="number" className="config-input" value={v.channelROI} onChange={(e) => update('channelROI', e.target.value)} />
-            </div>
+            
             <div className="adv-field">
               <label className="config-label">Approximate $ amount for test</label>
               <input type="number" className="config-input" value={v.testAmount} onChange={(e) => update('testAmount', e.target.value)} />
             </div>
+            <div className="adv-field">
+                <label className="config-label">
+                  Quick Result (Fast Mode)
+                  <TooltipInfo {...getTip('quick_result')} />
+                </label>
+                <label className="toggle-switch">
+                  <input 
+                    type="checkbox" 
+                    checked={v.quickResult === true || v.quickResult === 'true'} 
+                    onChange={(e) => update('quickResult', e.target.checked)} 
+                  />
+                  <span className="toggle-slider"></span>
+                </label>
+              </div>
           </div>
 
 
@@ -150,13 +150,7 @@ const CellAdvancedConfig = ({ value, onChange }) => {
                 </label>
                 <input type="number" min="1" className="config-input" value={v.treatmentPeriods} onChange={(e) => update('treatmentPeriods', e.target.value)} />
               </div>
-              <div className="adv-field">
-                <label className="config-label">
-                  Lookback window
-                  <TooltipInfo {...getTip('lookback_window')} />
-                </label>
-                <input type="number" min="1" className="config-input" value={v.lookbackWindow} onChange={(e) => update('lookbackWindow', e.target.value)} />
-              </div>
+              
               <div className="adv-field">
                 <label className="config-label">
                   Channel CPIC
@@ -164,26 +158,36 @@ const CellAdvancedConfig = ({ value, onChange }) => {
                 </label>
                 <input type="number" min="0" className="config-input" value={v.cpic} onChange={(e) => update('cpic', e.target.value)} />
               </div>
-              <div className="adv-field">
-                <label className="config-label">
-                  Alpha
-                  <TooltipInfo {...getTip('alpha')} />
-                </label>
-                <input type="number" step="0.01" min="0.01" max="0.5" className="config-input" value={v.alpha} onChange={(e) => update('alpha', e.target.value)} />
-              </div>
+             
             </div>
+            <div className="adv-grid">
+
             <div className="adv-field">
-              <label className="config-label">
-                Effect size list
+            <label className="config-label">
+            Size of Effect
                 <TooltipInfo {...getTip('effect_size')} />
               </label>
               <input type="text" className="config-input" value={v.effectSizeCsv} onChange={(e) => update('effectSizeCsv', e.target.value)} />
+            </div>
+
+            <div className="adv-field">
+            <label className="config-label">
+            Direction of Effect
+                <TooltipInfo {...getTip('direction_effect')} />
+              </label>
+              <select type="text" className="config-input" value={v.directionOfEffect} onChange={(e) => update('directionOfEffect', e.target.value)} >
+                <option value="pos">Positive</option>
+                <option value="neg">Negative</option>
+                <option value="both">Both</option>
+              </select>
+            </div>
+
             </div>
             <div className="adv-field">
             <label className="config-label">Number of test geos to consider: <strong>{v.numTestGeos}</strong></label>
             <input type="range" min="2" max="20" step="1" value={v.numTestGeos} onChange={(e) => update('numTestGeos', Number(e.target.value))} />
           </div>
-          <div className="adv-field">
+          {/* <div className="adv-field">
             <label className="config-label">
               Holdout range: <strong>{v.holdoutMin}% - {v.holdoutMax}%</strong>
               <TooltipInfo {...getTip('holdout')} />
@@ -219,7 +223,7 @@ const CellAdvancedConfig = ({ value, onChange }) => {
                 <span className="range-value-max">{v.holdoutMax}%</span>
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
       )}
     </div>

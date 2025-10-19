@@ -47,7 +47,7 @@ POST /api/market-selection
 {
   "data": {...},
   "treatment_periods": 14,
-  "effect_size": [0, 0.05, 0.1, 0.15, 0.2, 0.25]
+  "effect_size": 0.3
 }
 ```
 

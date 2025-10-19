@@ -56,6 +56,15 @@
     color: #6b7280;
 }
 
+.breadcrumb-item.clickable {
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.breadcrumb-item.clickable:hover {
+    color: #667eea;
+}
+
 .breadcrumb-item.current {
     color: #1f2937;
     font-weight: 500;

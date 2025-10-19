@@ -4,9 +4,10 @@ import IngestDataStep from './IngestDataStep';
 import ConfigureExperiment from './ConfigureExperiment';
 
 import { geoliftAPI } from '../utils/geoliftAPI';
+import { saveExperiment } from '../utils/experimentStorage';
 import './ExperimentSetup.css';
 
-const ExperimentSetup = ({ onBack }) => {
+const ExperimentSetup = ({ onBack, onExperimentCreated }) => {
   const [currentStep, setCurrentStep] = useState(1);
 
   // Controlled Step 1 state so we can validate and proceed
@@ -22,6 +23,7 @@ const ExperimentSetup = ({ onBack }) => {
   const [availableLocations, setAvailableLocations] = useState([]);
   const [selectedTestLocations, setSelectedTestLocations] = useState([]);
   const [testLocations, setTestLocations] = useState('');
+  const [experimentName, setExperimentName] = useState('');
 
   const [processedData, setProcessedData] = useState(null);
   const [geoDataReadResponse, setGeoDataReadResponse] = useState(null);
@@ -245,6 +247,124 @@ const ExperimentSetup = ({ onBack }) => {
     setCurrentStep(3);
   };
 
+  const handleCreateExperiment = async () => {
+    if (!selectedMarketRow) {
+      alert('Please select a market combination from the table');
+      return;
+    }
+
+    try {
+      // Get date range from geoDataReadResponse or processedData
+      let startDate = 'N/A';
+      let endDate = 'N/A';
+      
+      if (geoDataReadResponse?.summary?.date_range) {
+        startDate = geoDataReadResponse.summary.date_range.min_date;
+        endDate = geoDataReadResponse.summary.date_range.max_date;
+      } else if (processedData && Array.isArray(processedData) && processedData.length > 0) {
+        const dates = processedData.map(row => row.date).filter(Boolean).sort();
+        startDate = dates[0];
+        endDate = dates[dates.length - 1];
+      }
+
+      // Get experiment configuration from cells
+      const treatmentPeriods = experimentCells?.[0]?.advanced?.treatmentPeriods || 28;
+      const alpha = experimentCells?.[0]?.advanced?.alpha || 0.1;
+      const effectSize = experimentCells?.[0]?.advanced?.effectSizeCsv || 0.3;
+      const cpic = experimentCells?.[0]?.advanced?.cpic || 1;
+      const budget = experimentCells?.[0]?.advanced?.testAmount || 15000000;
+      const directionOfEffect = experimentCells?.[0]?.advanced?.directionOfEffect || 'pos';
+
+      // Calculate treatment times from dates if not already in selectedMarketRow
+      let treatmentStartTime = selectedMarketRow?.treatment_start_time;
+      let treatmentEndTime = selectedMarketRow?.treatment_end_time;
+      
+      if ((treatmentStartTime === undefined || treatmentEndTime === undefined) && geoDataReadResponse?.time_mapping) {
+        const timeMapping = geoDataReadResponse.time_mapping;
+        if (startDate && endDate) {
+          const startEntry = timeMapping.find(entry => entry.date === startDate);
+          const endEntry = timeMapping.find(entry => entry.date === endDate);
+          
+          if (startEntry && endEntry) {
+            treatmentStartTime = Array.isArray(startEntry.time) ? startEntry.time[0] : startEntry.time;
+            treatmentEndTime = Array.isArray(endEntry.time) ? endEntry.time[0] : endEntry.time;
+            console.log('[ExperimentSetup] Calculated treatment times from dates:', {
+              startDate, endDate, treatmentStartTime, treatmentEndTime
+            });
+          }
+        }
+      }
+
+      // Prepare enhanced market combo with treatment parameters
+      const enhancedMarketCombo = {
+        ...selectedMarketRow,
+        treatment_start_time: treatmentStartTime,
+        treatment_end_time: treatmentEndTime,
+        direction_of_effect: directionOfEffect,
+        alpha: alpha
+      };
+
+      // Prepare experiment data
+      const experimentData = {
+        name: experimentName || `Experiment - ${new Date().toLocaleDateString()}`,
+        outcome: outcomeColumn || 'N/A',
+        startDate,
+        endDate,
+        status: 'Markets Ready',
+        statusType: 'success',
+        
+        // Store selected market combo with enhanced parameters
+        marketCombo: enhancedMarketCombo,
+        
+        // Store analysis parameters
+        analysisParams: {
+          treatmentPeriods,
+          alpha,
+          effectSize,
+          cpic,
+          lookbackWindow: 1,
+          budget,
+          directionOfEffect
+        },
+        
+        // Store data
+        processedData,
+        geoDataReadResponse,
+        experimentCells,
+        
+        // Store user config for later use
+        userConfig: {
+          testBudget: budget,
+          treatmentPeriods,
+          numTestGeos: experimentCells?.[0]?.advanced?.numTestGeos || 2,
+          cpic,
+          effectSize,
+          alpha,
+          directionOfEffect
+        }
+      };
+
+      // Save experiment
+      const savedExperiment = await saveExperiment(experimentData);
+      
+      console.log('[ExperimentSetup] Experiment created successfully:', savedExperiment);
+      
+      // Show success message
+      alert(`Experiment "${savedExperiment.name}" created successfully!`);
+      
+      // Notify parent to refresh experiments list
+      if (onExperimentCreated) {
+        onExperimentCreated(savedExperiment);
+      }
+      
+      // Go back to main view
+      onBack();
+    } catch (error) {
+      console.error('[ExperimentSetup] Failed to create experiment:', error);
+      alert('Failed to create experiment. Please try again.');
+    }
+  };
+
 
 
   // Clear analysis cache when data or market combo changes
@@ -326,11 +446,11 @@ const ExperimentSetup = ({ onBack }) => {
         console.log('[CreateExperiment] Pre-calling market selection with GeoDataRead data...');
         const defaultParams = {
           treatmentPeriods: 28,
-          effectSize: [0, 0.05, 0.1, 0.15, 0.2, 0.25],
+          effectSize: 0.3,
           lookbackWindow: 1,
           cpic: 1,
           alpha: 0.1,
-          budget: 150000,
+          budget: 15000000,
           holdout: [0.5, 1.0]  // Already in decimal format for API
         };
         
@@ -342,10 +462,15 @@ const ExperimentSetup = ({ onBack }) => {
           // Set to 100% only when API truly completes successfully
           setMarketSelectionProgress(100);
           
+          // Use new API structure: output_obj.top_choices
+          const combos = resp.output_obj?.top_choices || resp.market_selection || [];
+          
           // Cache the default market selection results
           setCachedMarketSelection({
-            marketCombos: resp.market_selection || [],
+            marketCombos: combos,
             msError: '',
+            objID: resp.output_obj?.obj_ID || null,
+            singleCell: resp.output_obj?.single_cell ?? true,
             timestamp: Date.now(),
             dependencies: {
               treatmentPeriods: defaultParams.treatmentPeriods,
@@ -358,7 +483,7 @@ const ExperimentSetup = ({ onBack }) => {
               budget: defaultParams.budget
             }
           });
-          console.log('[CreateExperiment] Market selection pre-cached successfully');
+          console.log('[CreateExperiment] Market selection pre-cached successfully:', combos.length, 'combinations');
         } else {
           console.log('[CreateExperiment] Market selection pre-call failed:', resp.error);
         }
@@ -475,15 +600,7 @@ const ExperimentSetup = ({ onBack }) => {
             <div className="step-circle">2</div>
             <div className="step-label">Configure</div>
           </div>
-          <div className={`step-connector ${currentStep >= 3 ? 'active' : ''}`}></div>
-          <div 
-            className={`step ${currentStep >= 3 ? 'active' : ''} ${currentStep === 3 ? 'current' : ''} ${!processedData ? 'disabled' : ''}`}
-            onClick={() => goToStep(3)}
-            style={{ cursor: processedData ? 'pointer' : 'not-allowed' }}
-          >
-            <div className="step-circle">3</div>
-            <div className="step-label">Analyze</div>
-          </div>
+         
         </div>
           </div>
 
@@ -554,6 +671,7 @@ const ExperimentSetup = ({ onBack }) => {
               isPreCallingMarketSelection={isPreCallingMarketSelection}
               marketSelectionProgress={marketSelectionProgress}
               onGoToAnalysis={goToAnalysis}
+              onCreateExperiment={handleCreateExperiment}
               selectedMarketRow={selectedMarketRow}
               onSelectedMarketRowChange={setSelectedMarketRow}
               expandedRows={expandedRows}
@@ -566,6 +684,8 @@ const ExperimentSetup = ({ onBack }) => {
               onRowAnalysisErrorsChange={setRowAnalysisErrors}
               experimentCells={experimentCells}
               onExperimentCellsChange={setExperimentCells}
+              experimentName={experimentName}
+              onExperimentNameChange={setExperimentName}
             />
           </>
         )}
@@ -589,6 +709,7 @@ const ExperimentSetup = ({ onBack }) => {
               isPreCallingMarketSelection={isPreCallingMarketSelection}
               marketSelectionProgress={marketSelectionProgress}
               onGoToAnalysis={goToAnalysis}
+              onCreateExperiment={handleCreateExperiment}
               currentStep={3}
               selectedMarketRow={selectedMarketRow}
               onSelectedMarketRowChange={setSelectedMarketRow}
@@ -602,6 +723,8 @@ const ExperimentSetup = ({ onBack }) => {
               onRowAnalysisErrorsChange={setRowAnalysisErrors}
               experimentCells={experimentCells}
               onExperimentCellsChange={setExperimentCells}
+              experimentName={experimentName}
+              onExperimentNameChange={setExperimentName}
             />
           </>
         )}
