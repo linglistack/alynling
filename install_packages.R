@@ -58,7 +58,7 @@ cat("\n=== Installing core dependencies ===\n")
 core_packages <- c(
   "plumber", "jsonlite", "dplyr", "tidyr", "ggplot2", "stringr",
   "progress", "foreach", "doParallel", "scales", "gridExtra", 
-  "knitr", "tibble", "rlang"
+  "knitr", "tibble", "rlang", "purrr", "lubridate"
 )
 
 for (pkg in core_packages) {
@@ -149,7 +149,7 @@ if (!require("remotes", character.only = TRUE, quietly = TRUE) &&
 
 # 9. Verification
 cat("\n=== Verifying installation ===\n")
-critical_packages <- c("plumber", "jsonlite", "dplyr", "gsynth", "GeneCycle", "forecast", "augsynth", "GeoLift")
+critical_packages <- c("plumber", "jsonlite", "dplyr", "purrr", "lubridate", "tidyr", "gsynth", "GeneCycle", "forecast", "augsynth", "GeoLift")
 optional_packages <- c("devtools", "ragg")
 
 all_critical_ok <- TRUE
