@@ -612,6 +612,43 @@
     margin-right: auto;
 }
 
+/* Figma Tabs */
+.simple-waitlist-page__figma-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin: 2rem 0;
+}
+
+.simple-waitlist-page__figma-tab {
+    background: #ffffff;
+    border: 2px solid #e5e7eb;
+    color: #6b7280;
+    padding: 0.75rem 2rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.simple-waitlist-page__figma-tab:hover {
+    background: #f9fafb;
+    border-color: #3b82f6;
+    color: #3b82f6;
+}
+
+.simple-waitlist-page__figma-tab.active {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: #ffffff;
+}
+
+.simple-waitlist-page__figma-tab.active:hover {
+    background: #2563eb;
+    border-color: #2563eb;
+}
+
 .simple-waitlist-page__figma-iframe {
     background: #f8fafc;
     border-radius: 16px;
@@ -670,6 +707,16 @@
         font-size: 1rem;
     }
 
+    .simple-waitlist-page__figma-tabs {
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .simple-waitlist-page__figma-tab {
+        padding: 0.625rem 1.5rem;
+        font-size: 0.9rem;
+    }
+
     .simple-waitlist-page__figma-iframe {
         padding: 1rem;
     }
@@ -686,6 +733,15 @@
 
     .simple-waitlist-page__figma-subtitle {
         font-size: 0.9rem;
+    }
+
+    .simple-waitlist-page__figma-tabs {
+        gap: 0.25rem;
+    }
+
+    .simple-waitlist-page__figma-tab {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
     }
 
     .simple-waitlist-page__figma-iframe {

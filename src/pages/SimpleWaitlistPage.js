@@ -18,6 +18,20 @@ import './SimpleWaitlistPage.style.css';
 const SimpleWaitlistPage = () => {
   const [showWaitlistForm, setShowWaitlistForm] = useState(false);
   const [successData, setSuccessData] = useState(null);
+  const [activeFigmaTab, setActiveFigmaTab] = useState(0);
+
+  const figmaDemos = [
+    {
+      title: "Causal Inference",
+      badge: "Causal Inference",
+      url: "https://red-goal-35465634.figma.site/"
+    },
+    {
+      title: "Incrementality",
+      badge: "Incrementality",
+      url: "https://rapid-beluga-13777243.figma.site/"
+    }
+  ];
 
   const handleJoinWaitlist = () => {
     setShowWaitlistForm(true);
@@ -126,26 +140,39 @@ const SimpleWaitlistPage = () => {
             </div>
           </div>
         </section>
-        {/* Interactive Figma Section */}
+        {/* Interactive Figma Section with Tabs */}
         <section className="simple-waitlist-page__figma-section">
           <div className="simple-waitlist-page__figma-container">
-          <div className="features__badge">
-            Demo Platform
-          </div>
+            <div className="features__badge">
+              Demo Platform
+            </div>
             <h2 className="simple-waitlist-page__figma-title">
-            Click and interact with our platform demo
+              Click and interact with our platform demos
             </h2>
-            {/* <p className="simple-waitlist-page__figma-subtitle">
-              Click and interact with our platform demo
-            </p> */}
+            
+            {/* Tab Navigation */}
+            <div className="simple-waitlist-page__figma-tabs">
+              {figmaDemos.map((demo, index) => (
+                <button
+                  key={index}
+                  className={`simple-waitlist-page__figma-tab ${activeFigmaTab === index ? 'active' : ''}`}
+                  onClick={() => setActiveFigmaTab(index)}
+                >
+                  {demo.title}
+                </button>
+              ))}
+            </div>
+
+            {/* Active Figma Iframe */}
             <div className="simple-waitlist-page__figma-iframe">
               <iframe
                 className="simple-waitlist-page__figma-iframe-content"
-                src="https://red-goal-35465634.figma.site/"
+                key={activeFigmaTab}
+                src={figmaDemos[activeFigmaTab].url}
                 allowFullScreen
                 allow="fullscreen; clipboard-write; clipboard-read; autoplay; camera; microphone; geolocation"
                 sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-top-navigation allow-modals allow-downloads"
-                title="Interactive Platform Design"
+                title={figmaDemos[activeFigmaTab].title}
                 referrerPolicy="no-referrer-when-downgrade"
               />
             </div>
